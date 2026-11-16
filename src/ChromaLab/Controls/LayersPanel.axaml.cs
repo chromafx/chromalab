@@ -103,7 +103,7 @@ public partial class LayersPanel : UserControl
             Background = active
                 ? (IBrush?)(
                     this.FindResource("EditorAccentMutedBrush") as IBrush
-                    ?? new SolidColorBrush(Color.Parse("#2A3F55"))
+                    ?? new SolidColorBrush(Avalonia.Media.Color.Parse("#2A3F55"))
                 )
                 : Brushes.Transparent,
             CornerRadius = new Avalonia.CornerRadius(4),

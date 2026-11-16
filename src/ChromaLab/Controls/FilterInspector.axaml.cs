@@ -136,7 +136,7 @@ public partial class FilterInspector : UserControl
         if (_entry is null || _values is null)
             return;
 
-        var rng = Random.Shared;
+        var rng = System.Random.Shared;
         foreach (var param in _entry.Params)
         {
             if (param.Kind != FilterParamKind.Int)
