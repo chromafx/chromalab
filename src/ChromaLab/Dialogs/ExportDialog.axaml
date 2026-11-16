@@ -1,0 +1,58 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ChromaLab.Dialogs.ExportDialog"
+        Title="Export"
+        Width="440"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+  <DockPanel Margin="16" LastChildFill="True">
+    <StackPanel DockPanel.Dock="Bottom"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Spacing="8"
+                Margin="0,20,0,0">
+      <Button Name="PrimaryButton" Content="Export" MinWidth="96" IsDefault="True" />
+      <Button Name="CancelButton" Content="Cancel" MinWidth="88" IsCancel="True" />
+    </StackPanel>
+
+    <StackPanel Spacing="14">
+      <TextBlock Name="SubtitleText"
+                 FontSize="12"
+                 Opacity="0.7"
+                 TextWrapping="Wrap" />
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Format" FontSize="12" Opacity="0.85" />
+        <ComboBox Name="FormatCombo"
+                  MinHeight="32"
+                  HorizontalAlignment="Stretch" />
+      </StackPanel>
+
+      <StackPanel Name="OptionsHost" Spacing="8" />
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Destination" FontSize="12" Opacity="0.85" />
+        <DockPanel>
+          <Button Name="BrowseButton"
+                  DockPanel.Dock="Right"
+                  Content="Browse…"
+                  Margin="8,0,0,0"
+                  MinWidth="88"
+                  VerticalAlignment="Center" />
+          <TextBox Name="PathBox"
+                   PlaceholderText="Choose a file…"
+                   VerticalAlignment="Center" />
+        </DockPanel>
+      </StackPanel>
+
+      <TextBlock Name="NativeHint"
+                 FontSize="11"
+                 Opacity="0.6"
+                 TextWrapping="Wrap"
+                 IsVisible="False"
+                 Text="Native codecs need RID binaries from chromafx/native/build.sh." />
+    </StackPanel>
+  </DockPanel>
+</Window>

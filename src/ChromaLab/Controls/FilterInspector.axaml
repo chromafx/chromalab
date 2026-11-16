@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChromaLab.Controls.FilterInspector">
+  <Border BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+          BorderThickness="1,0,0,0"
+          Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+    <DockPanel Margin="12,10">
+      <TextBlock DockPanel.Dock="Top"
+                 Text="Filter"
+                 FontSize="11"
+                 FontWeight="SemiBold"
+                 Opacity="0.65"
+                 Margin="0,0,0,8"
+                 LetterSpacing="0.4" />
+
+      <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,12,0,0">
+        <Button Name="ApplyButton"
+                Content="Apply"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                IsDefault="True"
+                IsEnabled="False" />
+        <Button Name="CancelButton"
+                Content="Cancel"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                IsCancel="True"
+                IsEnabled="False" />
+        <Button Name="ResetParamsButton"
+                Content="Reset parameters"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                IsEnabled="False" />
+      </StackPanel>
+
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="12">
+          <TextBlock Name="TitleText"
+                     Text="No filter selected"
+                     FontSize="15"
+                     FontWeight="SemiBold"
+                     TextWrapping="Wrap" />
+          <TextBlock Name="HintText"
+                     Text="Choose a filter from the Filters menu. Parametric effects preview live here; Apply commits to undo."
+                     FontSize="12"
+                     Opacity="0.7"
+                     TextWrapping="Wrap" />
+          <StackPanel Name="ParamsHost" Spacing="14" IsVisible="False" />
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+  </Border>
+</UserControl>

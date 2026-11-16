@@ -1,0 +1,23 @@
+## Build
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.user
+*.suo
+.vs/
+.idea/
+*.DotSettings.user
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Avalonia / Rider
+*.DotSettings
+_ReSharper*/
+*.ncrunch*
+
+## Local agent tooling
+.cursor/
+.devin/
