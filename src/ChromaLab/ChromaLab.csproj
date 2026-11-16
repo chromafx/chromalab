@@ -6,10 +6,21 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>ChromaLab</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <RollForward>Major</RollForward>
     <IsPackable>false</IsPackable>
+    <PublishSingleFile>false</PublishSingleFile>
+    <ChromaFxPackageVersion Condition="'$(ChromaFxPackageVersion)' == ''">0.6.4</ChromaFxPackageVersion>
+    <!-- Local dogfood: sibling chromafx ProjectReferences. CI/release: -p:UseLocalChromaFx=false -->
+    <_LocalChromaFxProj>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\..\chromafx\src\ChromaFx\ChromaFx.csproj'))</_LocalChromaFxProj>
+    <UseLocalChromaFx Condition="'$(UseLocalChromaFx)' == '' and Exists('$(_LocalChromaFxProj)')">true</UseLocalChromaFx>
+    <UseLocalChromaFx Condition="'$(UseLocalChromaFx)' == ''">false</UseLocalChromaFx>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.6" />
@@ -22,10 +33,17 @@
     </PackageReference>
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(UseLocalChromaFx)' == 'true'">
     <ProjectReference Include="..\..\..\chromafx\src\ChromaFx\ChromaFx.csproj" />
     <ProjectReference Include="..\..\..\chromafx\src\ChromaFx.PixelArt\ChromaFx.PixelArt.csproj" />
     <ProjectReference Include="..\..\..\chromafx\src\ChromaFx.Retro\ChromaFx.Retro.csproj" />
     <ProjectReference Include="..\..\..\chromafx\src\ChromaFx.Native\ChromaFx.Native.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalChromaFx)' != 'true'">
+    <PackageReference Include="ChromaFx" Version="$(ChromaFxPackageVersion)" />
+    <PackageReference Include="ChromaFx.PixelArt" Version="$(ChromaFxPackageVersion)" />
+    <PackageReference Include="ChromaFx.Retro" Version="$(ChromaFxPackageVersion)" />
+    <PackageReference Include="ChromaFx.Native" Version="$(ChromaFxPackageVersion)" />
   </ItemGroup>
 </Project>

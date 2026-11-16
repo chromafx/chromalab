@@ -6,6 +6,7 @@
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="720"
         x:Class="ChromaLab.MainWindow"
         Title="ChromaLab"
+        Icon="/Assets/icon.ico"
         Width="1280" Height="720"
         MinWidth="880" MinHeight="480">
   <Window.Styles>
