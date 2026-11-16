@@ -1,17 +1,23 @@
 # ChromaLab
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 Desktop showcase lab for [ChromaFx](https://github.com/chromafx/chromafx) — open images, try filters, save results.
 
 Built with **Avalonia**. Local builds use **ProjectReferences** into a sibling `chromafx/` tree (tracks library edits without NuGet). Release builds on GitHub Actions use **NuGet** packages (pinned to a released ChromaFx line).
 
+## Download
+
+Self-contained zips for **win-x64**, **osx-arm64**, and **linux-x64** are on the [Releases](https://github.com/chromafx/chromalab/releases) page (current: **v0.1.0**). Unzip and run `ChromaLab` (`ChromaLab.exe` on Windows).
+
 ## Requirements
 
-- .NET 10 SDK (or newer with roll-forward)
+- .NET 10 SDK (or newer with roll-forward) — for building from source
 - For local dogfood: sibling checkout `../chromafx` (same layout as [chromafx-workspace](https://github.com/chromafx))
 
 Native WebP/AVIF/JPEG XL open/save works when `ChromaFx.Native` RID assets are present (sibling `native/build.sh` locally, or the NuGet package at release). Managed formats work without that.
 
-## Run
+## Run from source
 
 ```bash
 cd chromalab
@@ -24,23 +30,13 @@ Force NuGet packages instead of sibling ProjectReferences:
 dotnet run --project src/ChromaLab -p:UseLocalChromaFx=false
 ```
 
-## Releases
+## Releases (maintainers)
 
-Tag `v*.*.*` (e.g. `v0.1.0`) to publish self-contained zips via [GitHub Actions](.github/workflows/release.yml):
-
-| RID | Zip |
-|-----|-----|
-| `win-x64` | `ChromaLab-<version>-win-x64.zip` |
-| `osx-arm64` | `ChromaLab-<version>-osx-arm64.zip` |
-| `linux-x64` | `ChromaLab-<version>-linux-x64.zip` |
-
-Download from the [Releases](https://github.com/chromafx/chromalab/releases) page. Unzip and run the `ChromaLab` binary (or `ChromaLab.exe` on Windows). App icon is the ChromaFx logo under `src/ChromaLab/Assets/`.
-
-`workflow_dispatch` builds the same zips as artifacts without creating a release (optional version input).
+Tag `v*.*.*` to publish zips via [GitHub Actions](.github/workflows/release.yml). `workflow_dispatch` builds the same zips as artifacts without creating a release.
 
 Bump the library pin with `-p:ChromaFxPackageVersion=0.6.x` (default `0.6.4`) when you want release builds on a newer ChromaFx line.
 
-## What’s wired (scaffold)
+## What’s wired
 
 - Conventional **menu bar** (File / Edit / View / Layers / Filters) + **icon toolbar** + status bar
 - Open / **Save** / **Save As…** / **Export…** / Reset; **drag-and-drop** open
@@ -58,3 +54,9 @@ Bump the library pin with `-p:ChromaFxPackageVersion=0.6.x` (default `0.6.4`) wh
 - **Filter inspector** (right sidebar) — parametric filters **live-preview** as you tweak (debounced); **Apply** commits to undo, **Cancel** drops the preview. Param-less filters run immediately.
 
 GIF playback and a dedicated layers panel come later.
+
+## License
+
+Apache 2.0 — see [LICENSE](LICENSE).
+
+Copyright 2026 Ho Tzin Mein.

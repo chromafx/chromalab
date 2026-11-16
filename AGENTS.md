@@ -1,6 +1,6 @@
 # Agent guide — ChromaLab
 
-Avalonia desktop showcase for the sibling ChromaFx library. Own git repo; not a NuGet package.
+Avalonia desktop showcase for the sibling ChromaFx library. Own git repo; not a NuGet package. Licensed under Apache 2.0 (`LICENSE`).
 
 ## Layout
 
