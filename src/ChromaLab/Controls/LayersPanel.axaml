@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChromaLab.Controls.LayersPanel">
+  <Border BorderBrush="{DynamicResource EditorBorderBrush}"
+          BorderThickness="1,1,0,0"
+          Background="{DynamicResource EditorPanelBrush}">
+    <DockPanel Margin="10,8">
+      <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+        <TextBlock Text="LAYERS"
+                   FontSize="10"
+                   FontWeight="SemiBold"
+                   Opacity="0.55"
+                   LetterSpacing="0.6"
+                   VerticalAlignment="Center" />
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="2">
+          <Button Name="AddButton" Classes="tool" ToolTip.Tip="Add layer" Width="28" Height="26" Padding="4">
+            <Path Width="12" Height="12" Stretch="Uniform"
+                  Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M6,1 V11 M1,6 H11" />
+          </Button>
+          <Button Name="DupButton" Classes="tool" ToolTip.Tip="Duplicate layer" Width="28" Height="26" Padding="4">
+            <Path Width="12" Height="12" Stretch="Uniform"
+                  Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M3,3 H9 V9 H3 Z M5,5 H11 V11 H5 Z" />
+          </Button>
+          <Button Name="DeleteButton" Classes="tool" ToolTip.Tip="Delete layer" Width="28" Height="26" Padding="4">
+            <Path Width="12" Height="12" Stretch="Uniform"
+                  Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M3,3 L9,9 M9,3 L3,9" />
+          </Button>
+          <Button Name="UpButton" Classes="tool" ToolTip.Tip="Move up" Width="28" Height="26" Padding="4">
+            <Path Width="12" Height="12" Stretch="Uniform"
+                  Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M6,2 L10,7 H2 Z" />
+          </Button>
+          <Button Name="DownButton" Classes="tool" ToolTip.Tip="Move down" Width="28" Height="26" Padding="4">
+            <Path Width="12" Height="12" Stretch="Uniform"
+                  Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M6,10 L2,5 H10 Z" />
+          </Button>
+        </StackPanel>
+      </DockPanel>
+
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <StackPanel Name="LayersHost" Spacing="2" />
+      </ScrollViewer>
+    </DockPanel>
+  </Border>
+</UserControl>

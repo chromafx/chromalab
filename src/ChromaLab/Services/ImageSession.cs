@@ -19,6 +19,7 @@ using ChromaFx.Core;
 using ChromaFx.IO;
 using ChromaFx.IO.Encoders;
 using ChromaFx.Processing;
+using ChromaFx.Processing.Numerics;
 using ChromaLab.Layers;
 using ChromaLab.Services.Ora;
 
@@ -40,6 +41,7 @@ public sealed class ImageSession : IDisposable
     private Image? _composite;
     private WriteableBitmap? _preview;
     private int _previewGeneration;
+    private bool _comparing;
 
     // Index 0 = oldest; end = most recent snapshot.
     private readonly List<LayerDocument> _undo = [];
@@ -365,6 +367,92 @@ public sealed class ImageSession : IDisposable
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Crops the active layer to a document-space rectangle (one undo step).
+    /// Returns the cropped pixel size, or null if the rect misses the layer.
+    /// </summary>
+    public (int Width, int Height)? CropActiveLayer(int docX, int docY, int width, int height)
+    {
+        if (_document is null)
+            throw new InvalidOperationException("No image loaded.");
+        if (width < 1 || height < 1)
+            return null;
+
+        var layer = _document.ActiveLayer;
+        var localX = docX - layer.X;
+        var localY = docY - layer.Y;
+        var layerW = layer.Pixels.Width;
+        var layerH = layer.Pixels.Height;
+
+        var x0 = Math.Clamp(localX, 0, layerW);
+        var y0 = Math.Clamp(localY, 0, layerH);
+        var x1 = Math.Clamp(localX + width, 0, layerW);
+        var y1 = Math.Clamp(localY + height, 0, layerH);
+        var w = x1 - x0;
+        var h = y1 - y0;
+        if (w < 1 || h < 1)
+            return null;
+
+        var bounds = new Rectangle(x0, y0, w, h);
+        EditDocument(d =>
+        {
+            d.ActiveLayer.Pixels.Mutate(ctx => ctx.Crop(bounds));
+            d.ActiveLayer.X += x0;
+            d.ActiveLayer.Y += y0;
+        });
+        return (w, h);
+    }
+
+    /// <summary>
+    /// Changes the active layer without pushing undo or marking dirty.
+    /// </summary>
+    public void SelectLayer(int index)
+    {
+        if (_document is null)
+            throw new InvalidOperationException("No image loaded.");
+
+        if (_document.ActiveIndex == index)
+            return;
+
+        EndPreview();
+        _document.ActiveIndex = index;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Temporarily shows the document-open original composite (hold-to-compare).
+    /// </summary>
+    public void BeginCompare()
+    {
+        if (_original is null || _comparing)
+            return;
+
+        EndPreview();
+        var composite = _original.Composite();
+        _preview?.Dispose();
+        _preview = AvaloniaImageBridge.ToBitmap(composite);
+        _comparing = true;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Restores the committed display after <see cref="BeginCompare"/>.
+    /// </summary>
+    public void EndCompare()
+    {
+        if (!_comparing)
+            return;
+
+        _comparing = false;
+        RefreshPreview();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Gets whether hold-to-compare is showing the open-original composite.
+    /// </summary>
+    public bool IsComparing => _comparing;
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -428,6 +516,7 @@ public sealed class ImageSession : IDisposable
     {
         Interlocked.Increment(ref _previewGeneration);
         IsPreviewing = false;
+        _comparing = false;
     }
 
     private void RefreshPreview()

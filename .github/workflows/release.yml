@@ -62,6 +62,20 @@ jobs:
             -p:Version="${{ steps.ver.outputs.VERSION }}" \
             -o "publish/${{ matrix.rid }}"
 
+      - name: Package macOS .app
+        if: matrix.rid == 'osx-arm64'
+        shell: bash
+        run: |
+          chmod +x packaging/pack-macos.sh
+          packaging/pack-macos.sh "publish/${{ matrix.rid }}" "${{ steps.ver.outputs.VERSION }}"
+
+      - name: Package Linux desktop assets
+        if: matrix.rid == 'linux-x64'
+        shell: bash
+        run: |
+          chmod +x packaging/pack-linux.sh
+          packaging/pack-linux.sh "publish/${{ matrix.rid }}"
+
       - name: Zip (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -69,8 +83,14 @@ jobs:
           Compress-Archive -Path "publish/${{ matrix.rid }}\*" `
             -DestinationPath "ChromaLab-${{ steps.ver.outputs.VERSION }}-${{ matrix.rid }}.zip"
 
-      - name: Zip (Unix)
-        if: runner.os != 'Windows'
+      - name: Zip (macOS app)
+        if: matrix.rid == 'osx-arm64'
+        shell: bash
+        run: |
+          (cd "publish/${{ matrix.rid }}" && zip -r "../../ChromaLab-${{ steps.ver.outputs.VERSION }}-${{ matrix.rid }}.zip" ChromaLab.app)
+
+      - name: Zip (Linux)
+        if: matrix.rid == 'linux-x64'
         shell: bash
         run: |
           (cd "publish/${{ matrix.rid }}" && zip -r "../../ChromaLab-${{ steps.ver.outputs.VERSION }}-${{ matrix.rid }}.zip" .)

@@ -2,13 +2,17 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-Desktop showcase lab for [ChromaFx](https://github.com/chromafx/chromafx) — open images, try filters, save results.
+Desktop **image editor** powered by [ChromaFx](https://github.com/chromafx/chromafx) — open documents, edit layers, transform & filter, save / export. Built to be usable day-to-day while dogfooding the library.
 
 Built with **Avalonia**. Local builds use **ProjectReferences** into a sibling `chromafx/` tree (tracks library edits without NuGet). Release builds on GitHub Actions use **NuGet** packages (pinned to a released ChromaFx line).
 
 ## Download
 
-Self-contained zips for **win-x64**, **osx-arm64**, and **linux-x64** are on the [Releases](https://github.com/chromafx/chromalab/releases) page (current: **v0.1.0**). Unzip and run `ChromaLab` (`ChromaLab.exe` on Windows).
+Self-contained zips for **win-x64**, **osx-arm64**, and **linux-x64** are on the [Releases](https://github.com/chromafx/chromalab/releases) page (current: **v0.1.0**; editor shell targets **0.2.0**).
+
+- **Windows** — unzip and run `ChromaLab.exe` (embedded app icon).
+- **macOS** — unzip and open `ChromaLab.app` (Dock/Finder icon from `Assets/icon.icns`).
+- **Linux** — unzip and run `./ChromaLab`. Optional: `./install-desktop-entry.sh` installs a launcher + icon under `~/.local/share`.
 
 ## Requirements
 
@@ -38,22 +42,24 @@ Bump the library pin with `-p:ChromaFxPackageVersion=0.6.x` (default `0.6.4`) wh
 
 ## What’s wired
 
-- Conventional **menu bar** (File / Edit / View / Layers / Filters) + **icon toolbar** + status bar
-- Open / **Save** / **Save As…** / **Export…** / Reset; **drag-and-drop** open
-- **Layers** — flat raster stack; filters edit the active layer; composite for display. Menu: Add / Duplicate / Delete / Select Prev·Next / Toggle Visibility
+- **Editor shell** — top bar (brand + document actions), left **Tools / Filters** rail, canvas with checkerboard, right **inspector + layers** panel, status bar
+- Open / **Save** / **Save As…** / **Export…** / Reset; **drag-and-drop** open; empty-state Open
+- **Tools** — Hand/pan, **Crop** (active layer), Rotate / Flip via ChromaFx
+- **Filters** — searchable catalog from `FilterCatalog`; parametric filters **live-preview** in the inspector; **Apply** commits (undo); **Cancel** drops preview; **Randomize seed** when present
+- **Layers** — thumbs, visibility, active row, Add / Duplicate / Delete / Move up·down; filters edit the active layer; composite for display
 - **OpenRaster (`.ora`)** — lab-only open/save of the layer document (not in ChromaFx.IO). Nested groups flatten on import. Export stays flattened stills only.
 - **Export options** — JPEG quality; TIFF None/Deflate; WebP/AVIF/JXL quality + lossless (native RIDs)
-- **Async** open / save / export / filters (UI stays responsive; busy cursor + controls disabled)
+- **Async** open / save / export / filters (busy cursor + controls disabled)
 - **Dirty** tracking — title/status `•` marker; Save / Don’t Save / Cancel on open & quit
 - **Undo / Redo** (up to 24 document snapshots; Ctrl/⌘Z, Ctrl/⌘Y, Ctrl/⌘⇧Z)
+- **Hold-to-compare** — Space (or toolbar) shows the document-open original
 - **Shortcuts** — Ctrl/⌘O open, Ctrl/⌘S save, Ctrl/⌘⇧S save as, Ctrl/⌘E export, Ctrl/⌘0 100%, Ctrl/⌘1 fit, Ctrl/⌘± zoom
-- **Zoom / pan** — wheel zoom-to-cursor, drag to pan; image centered when it fits
-- Status: message · filename/size/active layer · zoom %
-- Preview via `WriteableBitmap` bridge
-- **Filter catalog** (`Filters/FilterCatalog.cs`) — grouped Filters menu; toolbar favorites (Greyscale / Invert / Web-safe)
-- **Filter inspector** (right sidebar) — parametric filters **live-preview** as you tweak (debounced); **Apply** commits to undo, **Cancel** drops the preview. Param-less filters run immediately.
+- **Zoom / pan** — wheel zoom-to-cursor, drag to pan
 
-GIF playback and a dedicated layers panel come later.
+## Roadmap
+
+- **Macros** — save an ordered sequence of catalog Applies (id + params) and run them for **bulk processing** over many files
+- GIF playback, canvas-size UI polish, richer transform tools
 
 ## License
 

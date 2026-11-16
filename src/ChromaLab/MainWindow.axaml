@@ -8,24 +8,8 @@
         Title="ChromaLab"
         Icon="/Assets/icon.ico"
         Width="1280" Height="720"
-        MinWidth="880" MinHeight="480">
-  <Window.Styles>
-    <Style Selector="Button.tool">
-      <Setter Property="Width" Value="36" />
-      <Setter Property="Height" Value="32" />
-      <Setter Property="Padding" Value="7" />
-      <Setter Property="Margin" Value="1,0" />
-    </Style>
-    <Style Selector="Button.tool:disabled Path">
-      <Setter Property="Opacity" Value="0.35" />
-    </Style>
-    <Style Selector="Separator.tool-sep">
-      <Setter Property="Margin" Value="6,4" />
-      <Setter Property="Width" Value="1" />
-      <Setter Property="Height" Value="20" />
-      <Setter Property="VerticalAlignment" Value="Center" />
-    </Style>
-  </Window.Styles>
+        MinWidth="960" MinHeight="560"
+        Background="{DynamicResource EditorCanvasBrush}">
 
   <DockPanel>
     <Menu DockPanel.Dock="Top">
@@ -49,6 +33,8 @@
         <Separator />
         <MenuItem Name="ActualSizeMenuItem" Header="_Actual Size (100%)" IsEnabled="False" />
         <MenuItem Name="FitMenuItem" Header="_Fit to Window" IsEnabled="False" />
+        <Separator />
+        <MenuItem Name="CompareMenuItem" Header="Hold to _Compare" IsEnabled="False" />
       </MenuItem>
       <MenuItem Header="_Layers">
         <MenuItem Name="LayerAddMenuItem" Header="_Add Layer" IsEnabled="False" />
@@ -58,73 +44,94 @@
         <MenuItem Name="LayerPrevMenuItem" Header="Select _Previous" IsEnabled="False" />
         <MenuItem Name="LayerNextMenuItem" Header="Select _Next" IsEnabled="False" />
         <MenuItem Name="LayerToggleVisibleMenuItem" Header="Toggle _Visibility" IsEnabled="False" />
+        <Separator />
+        <MenuItem Name="LayerMoveUpMenuItem" Header="Move _Up" IsEnabled="False" />
+        <MenuItem Name="LayerMoveDownMenuItem" Header="Move _Down" IsEnabled="False" />
       </MenuItem>
       <MenuItem Name="FiltersMenu" Header="F_ilters" />
     </Menu>
 
     <Border DockPanel.Dock="Top"
-            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+            BorderBrush="{DynamicResource EditorBorderBrush}"
             BorderThickness="0,0,0,1"
-            Padding="6,4"
-            Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
-      <StackPanel Orientation="Horizontal" Spacing="0">
-        <Button Name="OpenButton" Classes="tool" ToolTip.Tip="Open (Ctrl+O)">
-          <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                Data="M2,3 H8 L10,5 H18 V17 H2 Z M2,3 V17" />
-        </Button>
-        <Button Name="SaveButton" Classes="tool" ToolTip.Tip="Save (Ctrl+S)" IsEnabled="False">
-          <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                Data="M3,2 H13 L17,6 V18 H3 Z M6,2 V8 H12 V2 M6,12 H14 V18 H6 Z" />
-        </Button>
-        <Button Name="ExportButton" Classes="tool" ToolTip.Tip="Export… (Ctrl+E)" IsEnabled="False">
-          <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                Data="M8,2 V11 M5,8 L8,11 L11,8 M3,13 H13 V16 H3 Z" />
-        </Button>
+            Padding="8,4"
+            Background="{DynamicResource EditorPanelBrush}">
+      <DockPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Image Source="/Assets/icon.png" Width="22" Height="22" Stretch="Uniform" />
+          <TextBlock Text="ChromaLab"
+                     FontSize="13"
+                     FontWeight="SemiBold"
+                     VerticalAlignment="Center"
+                     Opacity="0.9" />
+        </StackPanel>
 
-        <Separator Classes="tool-sep" />
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="0"
+                    VerticalAlignment="Center">
+          <Button Name="OpenButton" Classes="tool" ToolTip.Tip="Open (Ctrl+O)">
+            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M2,3 H8 L10,5 H18 V17 H2 Z M2,3 V17" />
+          </Button>
+          <Button Name="SaveButton" Classes="tool" ToolTip.Tip="Save (Ctrl+S)" IsEnabled="False">
+            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M3,2 H13 L17,6 V18 H3 Z M6,2 V8 H12 V2 M6,12 H14 V18 H6 Z" />
+          </Button>
+          <Button Name="ExportButton" Classes="tool" ToolTip.Tip="Export… (Ctrl+E)" IsEnabled="False">
+            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M8,2 V11 M5,8 L8,11 L11,8 M3,13 H13 V16 H3 Z" />
+          </Button>
 
-        <Button Name="UndoButton" Classes="tool" ToolTip.Tip="Undo (Ctrl+Z)" IsEnabled="False">
-          <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                Data="M7,3 L2,8 L7,13 M2,8 H12 A4,4 0 0 1 12,16 H8" />
-        </Button>
-        <Button Name="RedoButton" Classes="tool" ToolTip.Tip="Redo (Ctrl+Y)" IsEnabled="False">
-          <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                Data="M9,3 L14,8 L9,13 M14,8 H4 A4,4 0 0 0 4,16 H8" />
-        </Button>
-        <Button Name="ResetButton" Classes="tool" ToolTip.Tip="Reset to original" IsEnabled="False">
-          <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                Data="M3,8 A5,5 0 1 1 8,13 M3,8 L5,5 M3,8 L5,11" />
-        </Button>
+          <Separator Classes="tool-sep" />
 
-        <Separator Classes="tool-sep" />
+          <Button Name="UndoButton" Classes="tool" ToolTip.Tip="Undo (Ctrl+Z)" IsEnabled="False">
+            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M7,3 L2,8 L7,13 M2,8 H12 A4,4 0 0 1 12,16 H8" />
+          </Button>
+          <Button Name="RedoButton" Classes="tool" ToolTip.Tip="Redo (Ctrl+Y)" IsEnabled="False">
+            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M9,3 L14,8 L9,13 M14,8 H4 A4,4 0 0 0 4,16 H8" />
+          </Button>
+          <Button Name="ResetButton" Classes="tool" ToolTip.Tip="Reset to original" IsEnabled="False">
+            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M3,8 A5,5 0 1 1 8,13 M3,8 L5,5 M3,8 L5,11" />
+          </Button>
 
-        <Button Name="ZoomOutButton" Classes="tool" ToolTip.Tip="Zoom out (Ctrl+-)" IsEnabled="False">
-          <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                Data="M2,8 H14 M12,4 A5,5 0 1 0 12,12" />
-        </Button>
-        <Button Name="ZoomInButton" Classes="tool" ToolTip.Tip="Zoom in (Ctrl+=)" IsEnabled="False">
-          <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                Data="M2,8 H10 M6,4 V12 M12,4 A5,5 0 1 0 12,12" />
-        </Button>
-        <Button Name="ActualSizeButton" Classes="tool" ToolTip.Tip="Actual size 100% (Ctrl+0)" IsEnabled="False">
-          <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                Data="M2,2 H6 V6 H2 Z M10,10 H14 V14 H10 Z M7,7 H9 V9 H7 Z" />
-        </Button>
-        <Button Name="FitButton" Classes="tool" ToolTip.Tip="Fit to window (Ctrl+1)" IsEnabled="False">
-          <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                Data="M2,2 H6 V4 H4 V6 H2 Z M10,2 H14 V6 H12 V4 H10 Z M2,10 H4 V12 H6 V14 H2 Z M12,10 H14 V14 H10 V12 H12 Z" />
-        </Button>
+          <Separator Classes="tool-sep" />
 
-        <Separator Name="FavoriteToolsSep" Classes="tool-sep" IsVisible="False" />
-        <StackPanel Name="FavoriteTools" Orientation="Horizontal" Spacing="0" />
-      </StackPanel>
+          <Button Name="ZoomOutButton" Classes="tool" ToolTip.Tip="Zoom out (Ctrl+-)" IsEnabled="False">
+            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M2,8 H14 M12,4 A5,5 0 1 0 12,12" />
+          </Button>
+          <Button Name="ZoomInButton" Classes="tool" ToolTip.Tip="Zoom in (Ctrl+=)" IsEnabled="False">
+            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M2,8 H10 M6,4 V12 M12,4 A5,5 0 1 0 12,12" />
+          </Button>
+          <Button Name="ActualSizeButton" Classes="tool" ToolTip.Tip="Actual size 100% (Ctrl+0)" IsEnabled="False">
+            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M2,2 H6 V6 H2 Z M10,10 H14 V14 H10 Z M7,7 H9 V9 H7 Z" />
+          </Button>
+          <Button Name="FitButton" Classes="tool" ToolTip.Tip="Fit to window (Ctrl+1)" IsEnabled="False">
+            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M2,2 H6 V4 H4 V6 H2 Z M10,2 H14 V6 H12 V4 H10 Z M2,10 H4 V12 H6 V14 H2 Z M12,10 H14 V14 H10 V12 H12 Z" />
+          </Button>
+          <Button Name="CompareButton" Classes="tool" ToolTip.Tip="Hold to compare with original (Space)" IsEnabled="False">
+            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                  Data="M2,3 H7 V13 H2 Z M9,3 H14 V13 H9 Z M7,8 H9" />
+          </Button>
+
+          <Separator Name="FavoriteToolsSep" Classes="tool-sep" IsVisible="False" />
+          <StackPanel Name="FavoriteTools" Orientation="Horizontal" Spacing="0" />
+        </StackPanel>
+      </DockPanel>
     </Border>
 
     <Border DockPanel.Dock="Bottom"
-            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+            BorderBrush="{DynamicResource EditorBorderBrush}"
             BorderThickness="0,1,0,0"
             Padding="10,5"
-            Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+            Background="{DynamicResource EditorPanelBrush}">
       <DockPanel>
         <TextBlock Name="ZoomText"
                    DockPanel.Dock="Right"
@@ -150,34 +157,101 @@
       </DockPanel>
     </Border>
 
-    <controls:FilterInspector Name="Inspector"
-                              DockPanel.Dock="Right"
-                              Width="280"
-                              MinWidth="240"
-                              MaxWidth="360" />
+    <!-- Right: inspector + layers -->
+    <Grid DockPanel.Dock="Right" Width="300" MinWidth="260" MaxWidth="380">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*" MinHeight="160" />
+        <RowDefinition Height="4" />
+        <RowDefinition Height="*" MinHeight="160" />
+      </Grid.RowDefinitions>
+      <controls:FilterInspector Name="Inspector" Grid.Row="0" />
+      <GridSplitter Grid.Row="1"
+                    ResizeDirection="Rows"
+                    Background="{DynamicResource EditorBorderBrush}" />
+      <controls:LayersPanel Name="LayersPane" Grid.Row="2" />
+    </Grid>
 
-    <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+    <!-- Left: tools / filter browser -->
+    <Border DockPanel.Dock="Left"
+            Width="220"
+            MinWidth="180"
+            MaxWidth="280"
+            BorderBrush="{DynamicResource EditorBorderBrush}"
+            BorderThickness="0,0,1,0"
+            Background="{DynamicResource EditorPanelBrush}"
+            Padding="8">
+      <DockPanel>
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,*" Margin="0,0,0,8">
+          <Button Name="ToolsTabButton" Grid.Column="0" Classes="rail-tab selected" Content="Tools" />
+          <Button Name="FiltersTabButton" Grid.Column="1" Classes="rail-tab" Content="Filters" />
+        </Grid>
+
+        <StackPanel Name="ToolsPane" Spacing="4">
+          <Button Name="HandToolButton" Classes="catalog-entry selected" Content="Hand / Pan" HorizontalContentAlignment="Left" Padding="8,6" />
+          <Button Name="CropToolButton" Classes="catalog-entry" Content="Crop (active layer)" HorizontalContentAlignment="Left" Padding="8,6" />
+          <Separator Margin="0,6" />
+          <TextBlock Text="TRANSFORM"
+                     FontSize="10"
+                     FontWeight="SemiBold"
+                     Opacity="0.55"
+                     LetterSpacing="0.6"
+                     Margin="4,0,4,2" />
+          <Button Name="Rotate90Button" Classes="catalog-entry" Content="Rotate 90° CW" HorizontalContentAlignment="Left" Padding="8,6" IsEnabled="False" />
+          <Button Name="Rotate180Button" Classes="catalog-entry" Content="Rotate 180°" HorizontalContentAlignment="Left" Padding="8,6" IsEnabled="False" />
+          <Button Name="FlipHButton" Classes="catalog-entry" Content="Flip horizontal" HorizontalContentAlignment="Left" Padding="8,6" IsEnabled="False" />
+          <Button Name="FlipVButton" Classes="catalog-entry" Content="Flip vertical" HorizontalContentAlignment="Left" Padding="8,6" IsEnabled="False" />
+          <TextBlock Name="CropHint"
+                     Text="Drag a rectangle on the canvas, then Apply Crop in the inspector area — or press Enter."
+                     FontSize="11"
+                     Opacity="0.65"
+                     TextWrapping="Wrap"
+                     Margin="4,10,4,0"
+                     IsVisible="False" />
+          <StackPanel Name="CropActions" Spacing="6" Margin="0,10,0,0" IsVisible="False">
+            <Button Name="ApplyCropButton" Content="Apply Crop" HorizontalAlignment="Stretch" IsEnabled="False" />
+            <Button Name="CancelCropButton" Content="Cancel Crop" HorizontalAlignment="Stretch" IsEnabled="False" />
+          </StackPanel>
+        </StackPanel>
+
+        <controls:FilterCatalogView Name="FilterBrowser" IsVisible="False" />
+      </DockPanel>
+    </Border>
+
+    <!-- Center canvas -->
+    <Border Background="{DynamicResource EditorCanvasBrush}">
       <ScrollViewer Name="PreviewScroll"
                     HorizontalScrollBarVisibility="Auto"
                     VerticalScrollBarVisibility="Auto"
                     AllowAutoHide="False"
                     Focusable="True">
-        <!-- Sized to at least the viewport so a smaller image can Center. -->
         <Panel Name="PreviewContentHost">
           <Border Name="EmptyHint"
                   IsVisible="True"
                   HorizontalAlignment="Center"
                   VerticalAlignment="Center"
-                  Padding="24"
-                  Opacity="0.55">
-            <StackPanel Spacing="6">
-              <TextBlock Text="File → Open… or drop an image here"
-                         FontSize="14"
+                  Padding="28"
+                  Opacity="0.7">
+            <StackPanel Spacing="12" HorizontalAlignment="Center">
+              <Image Source="/Assets/icon.png" Width="64" Height="64" Stretch="Uniform"
+                     HorizontalAlignment="Center" Opacity="0.85" />
+              <TextBlock Text="ChromaLab"
+                         FontSize="22"
+                         FontWeight="SemiBold"
                          HorizontalAlignment="Center" />
-              <TextBlock Text="Scroll to zoom · drag to pan"
-                         FontSize="12"
+              <TextBlock Text="Open an image or drop one here"
+                         FontSize="14"
                          Opacity="0.8"
                          HorizontalAlignment="Center" />
+              <Button Name="EmptyOpenButton"
+                      Content="Open…"
+                      HorizontalAlignment="Center"
+                      Padding="16,8"
+                      Margin="0,4,0,0" />
+              <TextBlock Text="Scroll to zoom · drag to pan · hold Space to compare"
+                         FontSize="11"
+                         Opacity="0.55"
+                         HorizontalAlignment="Center"
+                         Margin="0,4,0,0" />
             </StackPanel>
           </Border>
 
@@ -185,11 +259,23 @@
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Center"
                                   IsVisible="False">
-            <Border Name="PreviewFrame"
-                    Background="#202020"
-                    Cursor="SizeAll">
-              <Image Name="PreviewImage" Stretch="None" />
-            </Border>
+            <Panel>
+              <!-- Checkerboard under alpha -->
+              <Border Name="Checkerboard"
+                      Background="{DynamicResource CheckerBrush}" />
+              <Border Name="PreviewFrame" Cursor="SizeAll">
+                <Panel>
+                  <Image Name="PreviewImage" Stretch="None" />
+                  <Canvas Name="CropOverlay" IsHitTestVisible="False" IsVisible="False">
+                    <Rectangle Name="CropRect"
+                               Stroke="{DynamicResource EditorAccentBrush}"
+                               StrokeThickness="1.5"
+                               Fill="#403D8FD1"
+                               IsVisible="False" />
+                  </Canvas>
+                </Panel>
+              </Border>
+            </Panel>
           </LayoutTransformControl>
         </Panel>
       </ScrollViewer>

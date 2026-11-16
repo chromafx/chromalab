@@ -134,6 +134,55 @@ public sealed class LayerDocument
 
     public void ToggleActiveVisible() => ActiveLayer.Visible = !ActiveLayer.Visible;
 
+    /// <summary>Sets visibility for a layer by index.</summary>
+    public void SetVisible(int index, bool visible)
+    {
+        if (index < 0 || index >= _layers.Count)
+            throw new ArgumentOutOfRangeException(nameof(index));
+        _layers[index].Visible = visible;
+    }
+
+    /// <summary>
+    /// Moves a layer from <paramref name="fromIndex"/> to <paramref name="toIndex"/> (bottom→top).
+    /// Returns false if indices are invalid or unchanged.
+    /// </summary>
+    public bool TryMoveLayer(int fromIndex, int toIndex)
+    {
+        if (fromIndex < 0 || fromIndex >= _layers.Count || toIndex < 0 || toIndex >= _layers.Count)
+            return false;
+        if (fromIndex == toIndex)
+            return false;
+
+        var layer = _layers[fromIndex];
+        _layers.RemoveAt(fromIndex);
+        _layers.Insert(toIndex, layer);
+
+        if (_activeIndex == fromIndex)
+            _activeIndex = toIndex;
+        else if (fromIndex < _activeIndex && toIndex >= _activeIndex)
+            _activeIndex--;
+        else if (fromIndex > _activeIndex && toIndex <= _activeIndex)
+            _activeIndex++;
+
+        return true;
+    }
+
+    /// <summary>Moves the active layer one step toward the top. Returns false if already top.</summary>
+    public bool TryMoveActiveUp()
+    {
+        if (_activeIndex >= _layers.Count - 1)
+            return false;
+        return TryMoveLayer(_activeIndex, _activeIndex + 1);
+    }
+
+    /// <summary>Moves the active layer one step toward the bottom. Returns false if already bottom.</summary>
+    public bool TryMoveActiveDown()
+    {
+        if (_activeIndex <= 0)
+            return false;
+        return TryMoveLayer(_activeIndex, _activeIndex - 1);
+    }
+
     /// <summary>Used by <see cref="Services.Ora.OraCodec"/> when building from stack.xml (bottom→top).</summary>
     internal void AddLayerInternal(RasterLayer layer) => _layers.Add(layer);
 

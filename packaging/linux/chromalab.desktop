@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=ChromaLab
+Comment=Desktop image editor powered by ChromaFx
+Exec=ChromaLab
+Icon=chromalab
+Terminal=false
+Categories=Graphics;2DGraphics;RasterGraphics;
+StartupWMClass=ChromaLab

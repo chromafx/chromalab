@@ -43,6 +43,7 @@ public partial class FilterInspector : UserControl
             CancelRequested?.Invoke(this, EventArgs.Empty);
         };
         ResetParamsButton.Click += (_, _) => ResetToDefaults();
+        RandomizeButton.Click += (_, _) => RandomizeSeeds();
     }
 
     /// <summary>
@@ -95,7 +96,7 @@ public partial class FilterInspector : UserControl
         TitleText.Text = "No filter selected";
         HintText.IsVisible = true;
         HintText.Text =
-            "Choose a filter from the Filters menu. Parametric effects preview live here; Apply commits to undo.";
+            "Pick a filter from the left rail. Parametric effects preview live; Apply commits to undo.";
         UpdateButtons();
     }
 
@@ -123,6 +124,34 @@ public partial class FilterInspector : UserControl
         ApplyButton.IsEnabled = has && _canApply;
         CancelButton.IsEnabled = has;
         ResetParamsButton.IsEnabled = has;
+        var hasSeed = has && _entry!.Params.Any(p =>
+            p.Kind == FilterParamKind.Int
+            && p.Id.Contains("seed", StringComparison.OrdinalIgnoreCase));
+        RandomizeButton.IsVisible = hasSeed;
+        RandomizeButton.IsEnabled = hasSeed && _canApply;
+    }
+
+    private void RandomizeSeeds()
+    {
+        if (_entry is null || _values is null)
+            return;
+
+        var rng = Random.Shared;
+        foreach (var param in _entry.Params)
+        {
+            if (param.Kind != FilterParamKind.Int)
+                continue;
+            if (!param.Id.Contains("seed", StringComparison.OrdinalIgnoreCase))
+                continue;
+            var min = (int)param.Min;
+            var max = (int)param.Max;
+            if (max < min)
+                (min, max) = (max, min);
+            _values.Set(param.Id, rng.Next(min, max + 1));
+        }
+
+        RebuildEditors();
+        RaiseValuesChanged();
     }
 
     private void RaiseValuesChanged()

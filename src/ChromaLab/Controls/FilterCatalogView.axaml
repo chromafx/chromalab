@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChromaLab.Controls.FilterCatalogView">
+  <DockPanel>
+    <TextBox Name="SearchBox"
+             DockPanel.Dock="Top"
+             PlaceholderText="Search filters…"
+             Margin="0,0,0,8"
+             MinHeight="32" />
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+      <StackPanel Name="GroupsHost" Spacing="10" />
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

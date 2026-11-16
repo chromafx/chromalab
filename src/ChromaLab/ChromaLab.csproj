@@ -19,7 +19,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets\**" />
+    <!-- icon.icns is for macOS .app packaging only (see packaging/pack-macos.sh). -->
+    <AvaloniaResource Include="Assets\**" Exclude="Assets\icon.icns" />
   </ItemGroup>
 
   <ItemGroup>
