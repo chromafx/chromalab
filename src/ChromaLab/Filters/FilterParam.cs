@@ -127,4 +127,73 @@ public sealed class FilterValues
     public void Set(string id, object value) => _map[id] = value;
 
     public FilterValues Clone() => new(new Dictionary<string, object>(_map, StringComparer.Ordinal));
+
+    /// <summary>
+    /// Snapshot for JSON / macro serialization (JSON-friendly primitives).
+    /// </summary>
+    public Dictionary<string, object> ToDictionary()
+    {
+        var copy = new Dictionary<string, object>(StringComparer.Ordinal);
+        foreach (var (key, value) in _map)
+        {
+            copy[key] = value switch
+            {
+                float f => f,
+                double d => d,
+                int i => i,
+                long l => l,
+                bool b => b,
+                string s => s,
+                _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)
+                    ?? "",
+            };
+        }
+
+        return copy;
+    }
+
+    /// <summary>
+    /// Rebuilds values from a dictionary, coerced to each parameter's kind (missing → defaults).
+    /// </summary>
+    public static FilterValues FromDictionary(
+        IReadOnlyList<FilterParam> parameters,
+        IReadOnlyDictionary<string, object?>? raw
+    )
+    {
+        var values = FromDefaults(parameters);
+        if (raw is null || raw.Count == 0)
+            return values;
+
+        foreach (var param in parameters)
+        {
+            if (!raw.TryGetValue(param.Id, out var boxed) || boxed is null)
+                continue;
+
+            values.Set(
+                param.Id,
+                param.Kind switch
+                {
+                    FilterParamKind.Float => Convert.ToSingle(
+                        boxed,
+                        System.Globalization.CultureInfo.InvariantCulture
+                    ),
+                    FilterParamKind.Int => Convert.ToInt32(
+                        boxed,
+                        System.Globalization.CultureInfo.InvariantCulture
+                    ),
+                    FilterParamKind.Bool => Convert.ToBoolean(
+                        boxed,
+                        System.Globalization.CultureInfo.InvariantCulture
+                    ),
+                    FilterParamKind.Choice => Convert.ToString(
+                        boxed,
+                        System.Globalization.CultureInfo.InvariantCulture
+                    ) ?? "",
+                    _ => boxed,
+                }
+            );
+        }
+
+        return values;
+    }
 }

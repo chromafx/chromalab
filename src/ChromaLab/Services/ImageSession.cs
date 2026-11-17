@@ -21,6 +21,7 @@ using ChromaFx.IO.Encoders;
 using ChromaFx.Processing;
 using ChromaFx.Processing.Numerics;
 using ChromaLab.Layers;
+using ChromaLab.Macros;
 using ChromaLab.Services.Ora;
 
 namespace ChromaLab.Services;
@@ -361,6 +362,48 @@ public sealed class ImageSession : IDisposable
         Push(_undo, _document.Clone());
         Clear(_redo);
         edit(_document);
+        IsDirty = true;
+        RebuildComposite();
+        RefreshPreview();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Runs a filter macro on the active layer as a single undo step.
+    /// </summary>
+    public async Task ApplyMacroAsync(
+        MacroDefinition macro,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (_document is null)
+            throw new InvalidOperationException("No image loaded.");
+
+        ArgumentNullException.ThrowIfNull(macro);
+        var missing = MacroRunner.MissingIds(macro);
+        if (missing.Count > 0)
+            throw new InvalidOperationException(
+                "Unknown filter id(s): " + string.Join(", ", missing)
+            );
+
+        EndPreview();
+        var undoSnapshot = _document.Clone();
+        var work = _document.Clone();
+
+        await Task.Run(
+                () =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    MacroRunner.Apply(work.ActiveLayer.Pixels, macro, cancellationToken);
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(true);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        Push(_undo, undoSnapshot);
+        Clear(_redo);
+        _document = work;
         IsDirty = true;
         RebuildComposite();
         RefreshPreview();

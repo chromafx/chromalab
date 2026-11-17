@@ -55,11 +55,12 @@ Bump the library pin with `-p:ChromaFxPackageVersion=0.6.x` (default `0.6.4`) wh
 - **Hold-to-compare** — Space (or toolbar) shows the document-open original
 - **Shortcuts** — Ctrl/⌘O open, Ctrl/⌘S save, Ctrl/⌘⇧S save as, Ctrl/⌘E export, Ctrl/⌘0 100%, Ctrl/⌘1 fit, Ctrl/⌘± zoom
 - **Zoom / pan** — wheel zoom-to-cursor, drag to pan
+- **Macros** — record catalog Applies (id + params) to `*.chromafx-macro.json`; Open & Run on the active layer; **Bulk Process…** a folder to flattened exports (skips `.ora` / `.gif`)
 
 ## Roadmap
 
-- **Macros** — save an ordered sequence of catalog Applies (id + params) and run them for **bulk processing** over many files
 - GIF playback, canvas-size UI polish, richer transform tools
+- Tag **v0.3.0** for the macros/bulk wave when ready to ship
 
 ## License
 

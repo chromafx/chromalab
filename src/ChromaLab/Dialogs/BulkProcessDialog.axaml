@@ -1,0 +1,94 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ChromaLab.Dialogs.BulkProcessDialog"
+        Title="Bulk Process"
+        Width="520"
+        Height="560"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        MinWidth="440"
+        MinHeight="480"
+        ShowInTaskbar="False">
+  <DockPanel Margin="16">
+    <StackPanel DockPanel.Dock="Bottom"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Spacing="8"
+                Margin="0,16,0,0">
+      <Button Name="RunButton" Content="Run" MinWidth="96" IsDefault="True" />
+      <Button Name="CancelButton" Content="Close" MinWidth="88" IsCancel="True" />
+    </StackPanel>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="12">
+        <TextBlock Text="Apply a saved macro to every still image in a folder. The open document is unchanged."
+                   FontSize="12"
+                   Opacity="0.7"
+                   TextWrapping="Wrap" />
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Macro" FontSize="12" Opacity="0.85" />
+          <DockPanel>
+            <Button Name="BrowseMacroButton"
+                    DockPanel.Dock="Right"
+                    Content="Browse…"
+                    Margin="8,0,0,0"
+                    MinWidth="88" />
+            <TextBox Name="MacroPathBox" PlaceholderText="Choose a .chromafx-macro.json…" />
+          </DockPanel>
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Input folder" FontSize="12" Opacity="0.85" />
+          <DockPanel>
+            <Button Name="BrowseInputButton"
+                    DockPanel.Dock="Right"
+                    Content="Browse…"
+                    Margin="8,0,0,0"
+                    MinWidth="88" />
+            <TextBox Name="InputFolderBox" PlaceholderText="Folder of images…" />
+          </DockPanel>
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Output folder" FontSize="12" Opacity="0.85" />
+          <DockPanel>
+            <Button Name="BrowseOutputButton"
+                    DockPanel.Dock="Right"
+                    Content="Browse…"
+                    Margin="8,0,0,0"
+                    MinWidth="88" />
+            <TextBox Name="OutputFolderBox" PlaceholderText="Where to write results…" />
+          </DockPanel>
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Output suffix" FontSize="12" Opacity="0.85" />
+          <TextBox Name="SuffixBox" Text="-macro" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Format" FontSize="12" Opacity="0.85" />
+          <ComboBox Name="FormatCombo" MinHeight="32" HorizontalAlignment="Stretch" />
+        </StackPanel>
+
+        <StackPanel Name="OptionsHost" Spacing="8" />
+
+        <TextBlock Name="ProgressText"
+                   FontSize="12"
+                   Opacity="0.85"
+                   TextWrapping="Wrap"
+                   Text="Ready." />
+
+        <TextBox Name="LogBox"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 MinHeight="120"
+                 FontSize="11"
+                 Opacity="0.9" />
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

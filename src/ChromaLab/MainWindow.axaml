@@ -49,6 +49,13 @@
         <MenuItem Name="LayerMoveDownMenuItem" Header="Move _Down" IsEnabled="False" />
       </MenuItem>
       <MenuItem Name="FiltersMenu" Header="F_ilters" />
+      <MenuItem Header="_Macros">
+        <MenuItem Name="MacroRecordMenuItem" Header="Start _Recording" />
+        <MenuItem Name="MacroSaveMenuItem" Header="_Save Macro…" IsEnabled="False" />
+        <Separator />
+        <MenuItem Name="MacroRunMenuItem" Header="Open &amp; _Run…" IsEnabled="False" />
+        <MenuItem Name="MacroBulkMenuItem" Header="_Bulk Process…" />
+      </MenuItem>
     </Menu>
 
     <Border DockPanel.Dock="Top"

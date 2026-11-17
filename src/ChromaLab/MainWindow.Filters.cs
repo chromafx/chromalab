@@ -169,8 +169,12 @@ public partial class MainWindow
             var sw = System.Diagnostics.Stopwatch.StartNew();
             await _session.MutateAsync(ctx => entry.Apply(ctx, values));
             sw.Stop();
-            StatusText.Text = $"{label} · {_session.SizeLabel} · {sw.ElapsedMilliseconds} ms";
+            _macroRecorder.Record(entry, values);
+            StatusText.Text = _macroRecorder.IsRecording
+                ? $"Recording · {_macroRecorder.StepCount} · {label} · {sw.ElapsedMilliseconds} ms"
+                : $"{label} · {_session.SizeLabel} · {sw.ElapsedMilliseconds} ms";
             UpdateMeta();
+            RefreshMacroMenuUi(!_busy, _session.HasImage && !_busy);
         }
         catch (Exception ex)
         {

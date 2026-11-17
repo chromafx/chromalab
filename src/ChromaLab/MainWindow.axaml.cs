@@ -18,7 +18,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media;
+using ChromaLab.Macros;
 using ChromaLab.Services;
 
 namespace ChromaLab;
@@ -41,6 +41,7 @@ public partial class MainWindow : Window
 
     private readonly ImageSession _session = new();
     private readonly PreviewViewport _viewport = new();
+    private readonly MacroRecorder _macroRecorder = new();
     private readonly List<Control> _filterMenuControls = [];
     private readonly List<Control> _alwaysWhenIdle = [];
     private readonly List<Control> _whenCanEdit = [];
@@ -125,6 +126,7 @@ public partial class MainWindow : Window
         UiHelpers.Wire((_, _) => EditLayers(d => d.ToggleActiveVisible()), LayerToggleVisibleMenuItem);
         UiHelpers.Wire((_, _) => EditLayers(d => d.TryMoveActiveUp()), LayerMoveUpMenuItem);
         UiHelpers.Wire((_, _) => EditLayers(d => d.TryMoveActiveDown()), LayerMoveDownMenuItem);
+        WireMacroMenus();
         ExitMenuItem.Click += (_, _) => Close();
 
         ToolsTabButton.Click += (_, _) => SetRailMode(LeftRailMode.Tools);
@@ -192,7 +194,9 @@ public partial class MainWindow : Window
 
     private void CollectCommandGroups()
     {
-        _alwaysWhenIdle.AddRange([OpenMenuItem, OpenButton, EmptyOpenButton, ExitMenuItem]);
+        _alwaysWhenIdle.AddRange(
+            [OpenMenuItem, OpenButton, EmptyOpenButton, ExitMenuItem, MacroBulkMenuItem]
+        );
         _whenCanEdit.AddRange(
             [
                 SaveMenuItem,
@@ -213,6 +217,7 @@ public partial class MainWindow : Window
                 FlipVButton,
                 HandToolButton,
                 CropToolButton,
+                MacroRunMenuItem,
             ]
         );
         _whenCanZoom.AddRange(
@@ -455,6 +460,7 @@ public partial class MainWindow : Window
         FilterBrowser.SetEntriesEnabled(canEdit);
         Inspector.SetCanApply(canEdit);
         LayersPane.Refresh(doc, canEdit);
+        RefreshMacroMenuUi(idle, canEdit);
 
         EmptyHint.IsVisible = !has;
         ZoomHost.IsVisible = has;
