@@ -39,6 +39,16 @@ public partial class MainWindow
             return;
 
         var point = e.GetCurrentPoint(PreviewFrame);
+        if (
+            point.Properties.IsLeftButtonPressed
+            && e.KeyModifiers.HasFlag(KeyModifiers.Alt)
+            && TryPickFilterCenter(e.GetPosition(PreviewImage))
+        )
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (_canvasTool == CanvasTool.Crop && point.Properties.IsLeftButtonPressed)
         {
             _cropDragging = true;
@@ -56,6 +66,21 @@ public partial class MainWindow
             e.Pointer.Capture(PreviewFrame);
             e.Handled = true;
         }
+    }
+
+    private bool TryPickFilterCenter(Point imagePoint)
+    {
+        var size = PreviewPixelSize();
+        if (size is null || size.Value.Width <= 0 || size.Value.Height <= 0)
+            return false;
+
+        var nx = (float)Math.Clamp(imagePoint.X / size.Value.Width, 0, 1);
+        var ny = (float)Math.Clamp(imagePoint.Y / size.Value.Height, 0, 1);
+        if (!Inspector.TrySetNormalizedCenter(nx, ny))
+            return false;
+
+        StatusText.Text = $"Center · {nx:0.00}, {ny:0.00}";
+        return true;
     }
 
     private void OnPreviewPointerMoved(object? sender, PointerEventArgs e)

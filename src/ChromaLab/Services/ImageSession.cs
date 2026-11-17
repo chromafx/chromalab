@@ -20,6 +20,7 @@ using ChromaFx.IO;
 using ChromaFx.IO.Encoders;
 using ChromaFx.Processing;
 using ChromaFx.Processing.Numerics;
+using ChromaLab.Filters;
 using ChromaLab.Layers;
 using ChromaLab.Macros;
 using ChromaLab.Services.Ora;
@@ -495,6 +496,49 @@ public sealed class ImageSession : IDisposable
     /// Gets whether hold-to-compare is showing the open-original composite.
     /// </summary>
     public bool IsComparing => _comparing;
+
+    /// <summary>
+    /// Formats PSNR/SSIM of the committed composite vs the document-open original (same size only).
+    /// </summary>
+    public string? SimilarityVsOriginalLabel()
+    {
+        if (_original is null || _composite is null)
+            return null;
+
+        var original = _original.Composite();
+        if (original.Width != _composite.Width || original.Height != _composite.Height)
+            return null;
+
+        var psnr = ImageSimilarity.Psnr(original, _composite);
+        var ssim = ImageSimilarity.Ssim(original, _composite);
+        var psnrText = double.IsPositiveInfinity(psnr) ? "∞" : $"{psnr:0.0} dB";
+        return $"PSNR {psnrText} · SSIM {ssim:0.000}";
+    }
+
+    /// <summary>
+    /// Builds a small preview bitmap of <paramref name="entry"/> on a downscaled active-layer clone (E3).
+    /// </summary>
+    public WriteableBitmap? CreateFilterVariantThumb(FilterEntry entry, FilterValues values, int maxEdge = 64)
+    {
+        if (_document?.ActiveLayer is null)
+            return null;
+
+        var source = _document.ActiveLayer.Pixels;
+        if (source.Width <= 0 || source.Height <= 0)
+            return null;
+
+        var scale = Math.Min(1.0, maxEdge / (double)Math.Max(source.Width, source.Height));
+        var w = Math.Max(1, (int)Math.Round(source.Width * scale));
+        var h = Math.Max(1, (int)Math.Round(source.Height * scale));
+        var thumb = source.Clone();
+        thumb.Mutate(ctx =>
+        {
+            if (w != source.Width || h != source.Height)
+                ctx.Resize(w, h);
+            entry.Apply(ctx, values);
+        });
+        return AvaloniaImageBridge.ToBitmap(thumb);
+    }
 
     /// <inheritdoc />
     public void Dispose()

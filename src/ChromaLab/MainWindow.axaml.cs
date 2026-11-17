@@ -100,6 +100,8 @@ public partial class MainWindow : Window
         Inspector.ApplyRequested += (_, args) => TryMutate(args.Entry, args.Values);
         Inspector.ValuesChanged += (_, args) => SchedulePreview(args.Entry, args.Values);
         Inspector.CancelRequested += (_, _) => CancelInspectorPreview();
+        Inspector.VariantPreviewFactory = (entry, values) =>
+            _session.CreateFilterVariantThumb(entry, values);
         FilterBrowser.FilterChosen += (_, entry) => OnFilterChosen(entry);
         _session.Changed += (_, _) => OnSessionChanged();
 
@@ -384,7 +386,10 @@ public partial class MainWindow : Window
             return;
         CancelPreviewWork();
         _session.BeginCompare();
-        StatusText.Text = "Comparing with original…";
+        var metrics = _session.SimilarityVsOriginalLabel();
+        StatusText.Text = metrics is null
+            ? "Comparing with original…"
+            : $"Comparing · {metrics}";
     }
 
     private void EndCompare()

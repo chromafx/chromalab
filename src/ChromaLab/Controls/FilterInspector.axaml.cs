@@ -17,6 +17,7 @@
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using ChromaLab.Filters;
 
 namespace ChromaLab.Controls;
@@ -27,10 +28,13 @@ public partial class FilterInspector : UserControl
     private FilterValues? _values;
     private bool _canApply;
     private bool _suppressValuesChanged;
+    private readonly List<WriteableBitmap> _variantBitmaps = [];
+    private StackPanel? _variantsSection;
 
     public FilterInspector()
     {
         InitializeComponent();
+        _variantsSection = this.FindControl<StackPanel>("VariantsSection");
         ApplyButton.Click += (_, _) =>
         {
             if (_entry is null || _values is null)
@@ -43,8 +47,14 @@ public partial class FilterInspector : UserControl
             CancelRequested?.Invoke(this, EventArgs.Empty);
         };
         ResetParamsButton.Click += (_, _) => ResetToDefaults();
-        RandomizeButton.Click += (_, _) => RandomizeSeeds();
+        RandomizeButton.Click += (_, _) => RandomizeParams();
+        RefreshVariantsButton.Click += (_, _) => RebuildVariants();
     }
+
+    /// <summary>
+    /// Optional factory for E3 variant thumbnails (active-layer downscale + filter).
+    /// </summary>
+    public Func<FilterEntry, FilterValues, WriteableBitmap?>? VariantPreviewFactory { get; set; }
 
     /// <summary>
     /// Raised when the user clicks Apply with the selected filter and current values.
@@ -79,7 +89,9 @@ public partial class FilterInspector : UserControl
         TitleText.Text = entry.DisplayName;
         HintText.IsVisible = false;
         ParamsHost.IsVisible = true;
+        CenterHintText.IsVisible = FilterExplorer.HasNormalizedCenter(entry);
         RebuildEditors();
+        RebuildVariants();
         UpdateButtons();
         RaiseValuesChanged();
     }
@@ -93,6 +105,8 @@ public partial class FilterInspector : UserControl
         _values = null;
         ParamsHost.Children.Clear();
         ParamsHost.IsVisible = false;
+        CenterHintText.IsVisible = false;
+        ClearVariants();
         TitleText.Text = "No filter selected";
         HintText.IsVisible = true;
         HintText.Text =
@@ -105,8 +119,25 @@ public partial class FilterInspector : UserControl
     /// </summary>
     public void SetCanApply(bool canApply)
     {
+        var was = _canApply;
         _canApply = canApply;
         UpdateButtons();
+        if (canApply && !was && _entry is not null)
+            RebuildVariants();
+    }
+
+    /// <summary>
+    /// Sets normalized center (0–1) when the filter exposes <c>cx</c>/<c>cy</c> (E2).
+    /// </summary>
+    public bool TrySetNormalizedCenter(float x, float y)
+    {
+        if (_entry is null || _values is null)
+            return false;
+        if (!FilterExplorer.TrySetCenter(_entry, _values, x, y))
+            return false;
+        RebuildEditors();
+        RaiseValuesChanged();
+        return true;
     }
 
     private void ResetToDefaults()
@@ -124,34 +155,97 @@ public partial class FilterInspector : UserControl
         ApplyButton.IsEnabled = has && _canApply;
         CancelButton.IsEnabled = has;
         ResetParamsButton.IsEnabled = has;
-        var hasSeed = has && _entry!.Params.Any(p =>
-            p.Kind == FilterParamKind.Int
-            && p.Id.Contains("seed", StringComparison.OrdinalIgnoreCase));
-        RandomizeButton.IsVisible = hasSeed;
-        RandomizeButton.IsEnabled = hasSeed && _canApply;
+        RandomizeButton.IsVisible = has;
+        RandomizeButton.IsEnabled = has && _canApply;
+        RefreshVariantsButton.IsVisible = has;
+        RefreshVariantsButton.IsEnabled = has && _canApply;
+        if (_variantsSection is not null)
+            _variantsSection.IsVisible = has;
     }
 
-    private void RandomizeSeeds()
+    private void RandomizeParams()
     {
         if (_entry is null || _values is null)
             return;
 
-        var rng = System.Random.Shared;
-        foreach (var param in _entry.Params)
-        {
-            if (param.Kind != FilterParamKind.Int)
-                continue;
-            if (!param.Id.Contains("seed", StringComparison.OrdinalIgnoreCase))
-                continue;
-            var min = (int)param.Min;
-            var max = (int)param.Max;
-            if (max < min)
-                (min, max) = (max, min);
-            _values.Set(param.Id, rng.Next(min, max + 1));
-        }
-
+        FilterExplorer.Randomize(_entry, _values);
         RebuildEditors();
         RaiseValuesChanged();
+    }
+
+    private void RebuildVariants()
+    {
+        ClearVariants();
+        if (_entry is null || !_canApply)
+        {
+            if (_variantsSection is not null)
+                _variantsSection.IsVisible = _entry is not null;
+            return;
+        }
+
+        if (_variantsSection is not null)
+            _variantsSection.IsVisible = true;
+        var variants = FilterExplorer.CreateVariants(_entry);
+        for (var i = 0; i < variants.Length; i++)
+        {
+            var values = variants[i];
+            WriteableBitmap? thumb = null;
+            try
+            {
+                thumb = VariantPreviewFactory?.Invoke(_entry, values);
+            }
+            catch
+            {
+                // Keep a blank button if a variant fails.
+            }
+
+            if (thumb is not null)
+                _variantBitmaps.Add(thumb);
+
+            var button = new Button
+            {
+                Width = 56,
+                Height = 56,
+                Padding = new Avalonia.Thickness(2),
+                [ToolTip.TipProperty] = $"Variant {i + 1}",
+                Content = thumb is null
+                    ? new TextBlock
+                    {
+                        Text = $"{i + 1}",
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                    }
+                    : new Image
+                    {
+                        Source = thumb,
+                        Stretch = Stretch.UniformToFill,
+                        Width = 52,
+                        Height = 52,
+                    },
+            };
+            var captured = values;
+            button.Click += (_, _) => ApplyVariant(captured);
+            VariantsHost.Children.Add(button);
+        }
+    }
+
+    private void ApplyVariant(FilterValues values)
+    {
+        if (_entry is null)
+            return;
+        _values = values.Clone();
+        RebuildEditors();
+        RaiseValuesChanged();
+    }
+
+    private void ClearVariants()
+    {
+        VariantsHost.Children.Clear();
+        foreach (var bmp in _variantBitmaps)
+            bmp.Dispose();
+        _variantBitmaps.Clear();
+        if (_variantsSection is not null)
+            _variantsSection.IsVisible = false;
     }
 
     private void RaiseValuesChanged()

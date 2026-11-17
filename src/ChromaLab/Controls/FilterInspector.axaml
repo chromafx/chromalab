@@ -32,7 +32,13 @@
                 HorizontalContentAlignment="Center"
                 IsEnabled="False" />
         <Button Name="RandomizeButton"
-                Content="Randomize seed"
+                Content="Randomize"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                IsVisible="False"
+                IsEnabled="False" />
+        <Button Name="RefreshVariantsButton"
+                Content="Refresh variants"
                 HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Center"
                 IsVisible="False"
@@ -52,7 +58,25 @@
                      FontSize="12"
                      Opacity="0.7"
                      TextWrapping="Wrap" />
+          <TextBlock Name="CenterHintText"
+                     Text="Alt-click the canvas to set the center."
+                     FontSize="11"
+                     Opacity="0.65"
+                     TextWrapping="Wrap"
+                     IsVisible="False" />
           <StackPanel Name="ParamsHost" Spacing="14" IsVisible="False" />
+          <StackPanel Name="VariantsPanel"
+                      Spacing="6"
+                      IsVisible="False">
+            <TextBlock Text="Variants"
+                       FontSize="10"
+                       FontWeight="SemiBold"
+                       Opacity="0.55"
+                       LetterSpacing="0.6" />
+            <StackPanel Name="VariantsHost"
+                        Orientation="Horizontal"
+                        Spacing="6" />
+          </StackPanel>
         </StackPanel>
       </ScrollViewer>
     </DockPanel>
