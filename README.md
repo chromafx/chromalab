@@ -17,7 +17,7 @@ Self-contained zips for **win-x64**, **osx-arm64**, and **linux-x64** are on the
 ## Requirements
 
 - .NET 10 SDK (or newer with roll-forward) — for building from source
-- For local dogfood: sibling checkout `../chromafx` (same layout as [chromafx-workspace](https://github.com/chromafx))
+- For local dogfood: clone [chromafx](https://github.com/chromafx/chromafx) as a sibling `../chromafx` directory
 
 Native WebP/AVIF/JPEG XL open/save works when `ChromaFx.Native` RID assets are present (sibling `native/build.sh` locally, or the NuGet package at release). Managed formats work without that.
 
