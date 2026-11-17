@@ -70,6 +70,15 @@ public static class FilterCatalog
         new(nameof(AutoWhiteBalanceMethod.WhitePatch), "White Patch"),
     ];
 
+    private static readonly FilterChoice[] ResampleChoices =
+    [
+        new(nameof(ResamplingFilter.NearestNeighbor), "Nearest"),
+        new(nameof(ResamplingFilter.Bilinear), "Bilinear"),
+        new(nameof(ResamplingFilter.Bicubic), "Bicubic"),
+        new(nameof(ResamplingFilter.Lanczos3), "Lanczos3"),
+        new(nameof(ResamplingFilter.Mitchell), "Mitchell"),
+    ];
+
     /// <summary>
     /// Display order for filter groups in the Filters menu.
     /// </summary>
@@ -210,6 +219,17 @@ public static class FilterCatalog
                         v.GetFloat("outBlack"),
                         v.GetFloat("outWhite")
                     )
+            ),
+            Parametric(
+                "curves",
+                "Adjust",
+                "Curves",
+                [
+                    Float("black", "Black", 0, 0, 1, 0.01),
+                    Float("mid", "Mid", 0.5, 0, 1, 0.01),
+                    Float("white", "White", 1, 0, 1, 0.01),
+                ],
+                (c, v) => c.Curves(v.GetFloat("black"), v.GetFloat("mid"), v.GetFloat("white"))
             ),
             // —— Blur ——
             Parametric(
@@ -359,6 +379,65 @@ public static class FilterCatalog
             Instant("rotate-90", "Transform", "Rotate 90° CW", c => c.Rotate(90f)),
             Instant("rotate-180", "Transform", "Rotate 180°", c => c.Rotate(180f)),
             Instant("rotate-270", "Transform", "Rotate 90° CCW", c => c.Rotate(270f)),
+            Parametric(
+                "resize",
+                "Transform",
+                "Resize",
+                [
+                    Float("scale", "Scale", 1.0, 0.1, 4.0, 0.05),
+                    Choice(
+                        "filter",
+                        "Filter",
+                        nameof(ResamplingFilter.Bilinear),
+                        ResampleChoices
+                    ),
+                ],
+                (c, v) =>
+                {
+                    var scale = v.GetFloat("scale");
+                    var w = Math.Max(1, (int)Math.Round(c.Image.Width * scale));
+                    var h = Math.Max(1, (int)Math.Round(c.Image.Height * scale));
+                    c.Resize(w, h, v.GetEnum<ResamplingFilter>("filter"));
+                }
+            ),
+            Parametric(
+                "rotate",
+                "Transform",
+                "Rotate",
+                [Float("degrees", "Degrees", 15, -180, 180, 1)],
+                (c, v) => c.Rotate(v.GetFloat("degrees"))
+            ),
+            Parametric(
+                "skew",
+                "Transform",
+                "Skew",
+                [
+                    Float("x", "X angle °", 10, -45, 45, 1),
+                    Float("y", "Y angle °", 0, -45, 45, 1),
+                    Choice(
+                        "filter",
+                        "Filter",
+                        nameof(ResamplingFilter.Bilinear),
+                        ResampleChoices
+                    ),
+                ],
+                (c, v) =>
+                    c.Skew(
+                        v.GetFloat("x"),
+                        v.GetFloat("y"),
+                        v.GetEnum<ResamplingFilter>("filter")
+                    )
+            ),
+            Parametric(
+                "perspective",
+                "Transform",
+                "Perspective",
+                [
+                    Float("horizontal", "Horizontal", 0.15, -0.45, 0.45, 0.01),
+                    Float("vertical", "Vertical", 0, -0.45, 0.45, 0.01),
+                ],
+                (c, v) => c.Perspective(v.GetFloat("horizontal"), v.GetFloat("vertical"))
+            ),
             // —— Retro ——
             Parametric(
                 "websafe",

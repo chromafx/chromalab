@@ -44,6 +44,8 @@ public sealed class ImageSession : IDisposable
     private WriteableBitmap? _preview;
     private int _previewGeneration;
     private bool _comparing;
+    private Animation? _animation;
+    private bool _showingAnimationFrame;
 
     // Index 0 = oldest; end = most recent snapshot.
     private readonly List<LayerDocument> _undo = [];
@@ -112,12 +114,27 @@ public sealed class ImageSession : IDisposable
     public WriteableBitmap? Preview => _preview;
 
     /// <summary>
+    /// Gets whether a multi-frame animation was loaded for play-only preview (GIF).
+    /// </summary>
+    public bool HasAnimation => _animation is { Count: > 1 };
+
+    /// <summary>
+    /// Gets animation frame count (0 when none).
+    /// </summary>
+    public int AnimationFrameCount => _animation?.Count ?? 0;
+
+    /// <summary>
+    /// Gets whether the preview is currently showing an animation frame (not the document composite).
+    /// </summary>
+    public bool IsShowingAnimationFrame => _showingAnimationFrame;
+
+    /// <summary>
     /// Loads an image or .ora from disk into the session (clears history). Prefer <see cref="OpenAsync"/>.
     /// </summary>
     public void Open(string path)
     {
-        var doc = LoadDocument(path);
-        Replace(doc, path, clearHistory: true, dirty: false);
+        var (doc, anim) = LoadDocumentAndAnimation(path);
+        Replace(doc, path, clearHistory: true, dirty: false, anim);
     }
 
     /// <summary>
@@ -125,9 +142,10 @@ public sealed class ImageSession : IDisposable
     /// </summary>
     public async Task OpenAsync(string path, CancellationToken cancellationToken = default)
     {
-        var doc = await Task.Run(() => LoadDocument(path), cancellationToken).ConfigureAwait(true);
+        var (doc, anim) = await Task.Run(() => LoadDocumentAndAnimation(path), cancellationToken)
+            .ConfigureAwait(true);
         cancellationToken.ThrowIfCancellationRequested();
-        Replace(doc, path, clearHistory: true, dirty: false);
+        Replace(doc, path, clearHistory: true, dirty: false, anim);
     }
 
     /// <summary>
@@ -412,6 +430,28 @@ public sealed class ImageSession : IDisposable
     }
 
     /// <summary>
+    /// Changes the document canvas size (one undo step). Layer pixels/offsets unchanged.
+    /// </summary>
+    public void ResizeCanvas(int width, int height)
+    {
+        if (_document is null)
+            throw new InvalidOperationException("No image loaded.");
+        if (width < 1 || height < 1)
+            throw new ArgumentOutOfRangeException(nameof(width), "Canvas size must be at least 1×1.");
+        if (_document.Width == width && _document.Height == height)
+            return;
+
+        EndPreview();
+        Push(_undo, _document.Clone());
+        Clear(_redo);
+        _document.SetCanvasSize(width, height);
+        IsDirty = true;
+        RebuildComposite();
+        RefreshPreview();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
     /// Crops the active layer to a document-space rectangle (one undo step).
     /// Returns the cropped pixel size, or null if the rect misses the layer.
     /// </summary>
@@ -516,6 +556,53 @@ public sealed class ImageSession : IDisposable
     }
 
     /// <summary>
+    /// Shows animation frame <paramref name="index"/> in the preview (play-only; does not dirty the document).
+    /// </summary>
+    public void ShowAnimationFrame(int index)
+    {
+        if (_animation is null || _animation.Count == 0)
+            return;
+
+        index = Math.Clamp(index, 0, _animation.Count - 1);
+        EndPreview();
+        _comparing = false;
+        _preview?.Dispose();
+        _preview = AvaloniaImageBridge.ToBitmap(_animation[index]);
+        _showingAnimationFrame = true;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Delay for animation frame <paramref name="index"/> in milliseconds (GIF delays are centiseconds).
+    /// </summary>
+    public int GetAnimationFrameDelayMs(int index)
+    {
+        if (_animation is null || _animation.Count == 0)
+            return 100;
+
+        index = Math.Clamp(index, 0, _animation.Count - 1);
+        var centiseconds = _animation.GetFrameDelay(index);
+        return centiseconds <= 0 ? 100 : Math.Max(20, centiseconds * 10);
+    }
+
+    /// <summary>
+    /// Gets how many times the animation should play (0 = loop forever).
+    /// </summary>
+    public ushort AnimationRepeatCount => _animation?.RepeatCount ?? 0;
+
+    /// <summary>
+    /// Restores the document composite preview after animation playback.
+    /// </summary>
+    public void RestoreDocumentPreview()
+    {
+        if (!_showingAnimationFrame)
+            return;
+        _showingAnimationFrame = false;
+        RefreshPreview();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
     /// Builds a small preview bitmap of <paramref name="entry"/> on a downscaled active-layer clone (E3).
     /// </summary>
     public WriteableBitmap? CreateFilterVariantThumb(FilterEntry entry, FilterValues values, int maxEdge = 64)
@@ -551,11 +638,36 @@ public sealed class ImageSession : IDisposable
         _composite = null;
         _document = null;
         _original = null;
+        _animation = null;
+        _showingAnimationFrame = false;
         IsDirty = false;
     }
 
-    private static LayerDocument LoadDocument(string path) =>
-        OraCodec.IsOraPath(path) ? OraCodec.Read(path) : LayerDocument.FromImage(Image.Load(path));
+    private static (LayerDocument Doc, Animation? Anim) LoadDocumentAndAnimation(string path)
+    {
+        if (OraCodec.IsOraPath(path))
+            return (OraCodec.Read(path), null);
+
+        var image = Image.Load(path);
+        var doc = LayerDocument.FromImage(image);
+        Animation? anim = null;
+        if (IsGifPath(path))
+        {
+            try
+            {
+                anim = Animation.Load(path);
+            }
+            catch
+            {
+                // Still document remains usable if animation decode fails.
+            }
+        }
+
+        return (doc, anim);
+    }
+
+    private static bool IsGifPath(string path) =>
+        path.EndsWith(".gif", StringComparison.OrdinalIgnoreCase);
 
     private static void WritePath(
         LayerDocument document,
@@ -578,7 +690,13 @@ public sealed class ImageSession : IDisposable
             image.Save(path, encoder);
     }
 
-    private void Replace(LayerDocument document, string? path, bool clearHistory, bool dirty)
+    private void Replace(
+        LayerDocument document,
+        string? path,
+        bool clearHistory,
+        bool dirty,
+        Animation? animation = null
+    )
     {
         EndPreview();
         _preview?.Dispose();
@@ -592,6 +710,8 @@ public sealed class ImageSession : IDisposable
         _document = document;
         Path = path;
         IsDirty = dirty;
+        _animation = animation is { Count: > 1 } ? animation : null;
+        _showingAnimationFrame = false;
         RebuildComposite();
         RefreshPreview();
         Changed?.Invoke(this, EventArgs.Empty);
@@ -604,12 +724,14 @@ public sealed class ImageSession : IDisposable
         Interlocked.Increment(ref _previewGeneration);
         IsPreviewing = false;
         _comparing = false;
+        _showingAnimationFrame = false;
     }
 
     private void RefreshPreview()
     {
         _preview?.Dispose();
         _preview = _composite is null ? null : AvaloniaImageBridge.ToBitmap(_composite);
+        _showingAnimationFrame = false;
     }
 
     private static void Push(List<LayerDocument> history, LayerDocument snapshot)

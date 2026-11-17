@@ -87,6 +87,8 @@ public partial class MainWindow
         if (_busy || !_session.HasImage)
             return;
 
+        StopAnimationPlayback(restoreDocument: true);
+
         if (_canvasTool == CanvasTool.Crop)
             SetCanvasTool(CanvasTool.Hand);
 

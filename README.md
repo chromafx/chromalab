@@ -44,8 +44,10 @@ Bump the library pin with `-p:ChromaFxPackageVersion=0.6.x` (default `0.6.4`) wh
 
 - **Editor shell** — top bar (brand + document actions), left **Tools / Filters** rail, canvas with checkerboard, right **inspector + layers** panel, status bar
 - Open / **Save** / **Save As…** / **Export…** / Reset; **drag-and-drop** open; empty-state Open
-- **Tools** — Hand/pan, **Crop** (active layer), Rotate / Flip via ChromaFx
+- **Tools** — Hand/pan, **Crop** (active layer), Rotate 90°/180° / Flip; **Resize** / **Rotate** / **Skew** / **Perspective** / **Curves** (inspector)
 - **Filters** — searchable catalog from `FilterCatalog`; parametric filters **live-preview** in the inspector; **Apply** commits (undo); **Cancel** drops preview; **Randomize** (all params); **variant strip**; Alt-click canvas to set center (`cx`/`cy`); hold-to-compare shows PSNR/SSIM vs open-original (needs sibling Core with `ImageSimilarity`)
+- **GIF playback** — multi-frame GIFs open as a still (frame 0) for editing; Tools → **Play** / Pause previews frames (play-only; no animated export)
+- **Canvas Size…** (Edit menu) — change document W×H; layer pixels/offsets unchanged (display clips)
 - **Layers** — thumbs, visibility, active row, Add / Duplicate / Delete / Move up·down; filters edit the active layer; composite for display
 - **OpenRaster (`.ora`)** — lab-only open/save of the layer document (not in ChromaFx.IO). Nested groups flatten on import. Export stays flattened stills only.
 - **Export options** — JPEG quality; TIFF None/Deflate; WebP/AVIF/JXL quality + lossless (native RIDs)
@@ -59,8 +61,7 @@ Bump the library pin with `-p:ChromaFxPackageVersion=0.6.x` (default `0.6.4`) wh
 
 ## Roadmap
 
-- Tag **v0.3.0** when shipping macros/bulk + explorers
-- Then: GIF playback, canvas-size UI polish, richer transform tools
+- Tag **v0.3.0** when ready (macros/bulk, explorers, and polish — GIF play, canvas size, Resize/Rotate/Skew/Perspective/Curves — are on `master`)
 
 ## License
 

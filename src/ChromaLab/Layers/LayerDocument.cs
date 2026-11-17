@@ -34,8 +34,20 @@ public sealed class LayerDocument
         Height = height;
     }
 
-    public int Width { get; }
-    public int Height { get; }
+    public int Width { get; private set; }
+    public int Height { get; private set; }
+
+    /// <summary>
+    /// Changes the document canvas size. Layer pixel buffers and offsets are unchanged
+    /// (compositor clips to the new bounds).
+    /// </summary>
+    public void SetCanvasSize(int width, int height)
+    {
+        if (width < 1 || height < 1)
+            throw new ArgumentOutOfRangeException(nameof(width), "Document size must be at least 1×1.");
+        Width = width;
+        Height = height;
+    }
 
     /// <summary>Layers from bottom (index 0) to top.</summary>
     public IReadOnlyList<RasterLayer> Layers => _layers;

@@ -94,6 +94,33 @@ public partial class MainWindow
         }
     }
 
+    private async void OnCanvasSizeClick(object? sender, RoutedEventArgs e)
+    {
+        if (_busy || !_session.HasImage || _session.Document is null)
+            return;
+
+        StopAnimationPlayback(restoreDocument: true);
+        CancelPreviewWork();
+        ClearCropSelection();
+
+        var doc = _session.Document;
+        var result = await CanvasSizeDialog.ShowAsync(this, doc.Width, doc.Height);
+        if (result is null)
+            return;
+
+        try
+        {
+            _session.ResizeCanvas(result.Value.Width, result.Value.Height);
+            StatusText.Text = $"Canvas · {_session.SizeLabel}";
+            UpdateMeta();
+            FitToWindow();
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Canvas size failed: {ex.Message}";
+        }
+    }
+
     private void TryUndo()
     {
         if (_busy)

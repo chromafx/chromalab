@@ -90,6 +90,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        StopAnimationPlayback(restoreDocument: false);
         CancelPreviewWork();
         _session.Dispose();
         base.OnClosed(e);
@@ -111,6 +112,7 @@ public partial class MainWindow : Window
         UiHelpers.Wire(OnExportClick, ExportMenuItem, ExportButton);
         UiHelpers.Wire((_, _) => TryUndo(), UndoMenuItem, UndoButton);
         UiHelpers.Wire((_, _) => TryRedo(), RedoMenuItem, RedoButton);
+        UiHelpers.Wire(OnCanvasSizeClick, CanvasSizeMenuItem);
         UiHelpers.Wire(OnResetClick, ResetMenuItem, ResetButton);
         UiHelpers.Wire((_, _) => ZoomBy(PreviewViewport.ZoomStep), ZoomInMenuItem, ZoomInButton);
         UiHelpers.Wire(
@@ -129,6 +131,7 @@ public partial class MainWindow : Window
         UiHelpers.Wire((_, _) => EditLayers(d => d.TryMoveActiveUp()), LayerMoveUpMenuItem);
         UiHelpers.Wire((_, _) => EditLayers(d => d.TryMoveActiveDown()), LayerMoveDownMenuItem);
         WireMacroMenus();
+        WireAnimationUi();
         ExitMenuItem.Click += (_, _) => Close();
 
         ToolsTabButton.Click += (_, _) => SetRailMode(LeftRailMode.Tools);
@@ -141,6 +144,9 @@ public partial class MainWindow : Window
         Rotate180Button.Click += (_, _) => ApplyCatalogId("rotate-180");
         FlipHButton.Click += (_, _) => ApplyCatalogId("flip-h");
         FlipVButton.Click += (_, _) => ApplyCatalogId("flip-v");
+        ResizeToolButton.Click += (_, _) => ApplyCatalogId("resize");
+        RotateToolButton.Click += (_, _) => ApplyCatalogId("rotate");
+        SkewToolButton.Click += (_, _) => ApplyCatalogId("skew");
 
         LayersPane.AddRequested += (_, _) => EditLayers(d => d.AddEmptyLayer());
         LayersPane.DuplicateRequested += (_, _) => EditLayers(d => d.DuplicateActive());
@@ -208,6 +214,7 @@ public partial class MainWindow : Window
                 ExportButton,
                 ResetMenuItem,
                 ResetButton,
+                CanvasSizeMenuItem,
                 LayerAddMenuItem,
                 LayerDuplicateMenuItem,
                 LayerPrevMenuItem,
@@ -217,6 +224,9 @@ public partial class MainWindow : Window
                 Rotate180Button,
                 FlipHButton,
                 FlipVButton,
+                ResizeToolButton,
+                RotateToolButton,
+                SkewToolButton,
                 HandToolButton,
                 CropToolButton,
                 MacroRunMenuItem,
@@ -248,6 +258,7 @@ public partial class MainWindow : Window
         UiHelpers.SetSelectedClass(FiltersTabButton, !tools);
         if (!tools && _canvasTool == CanvasTool.Crop)
             SetCanvasTool(CanvasTool.Hand);
+        UpdateAnimationUi();
     }
 
     private void SetCanvasTool(CanvasTool tool)
@@ -384,6 +395,7 @@ public partial class MainWindow : Window
     {
         if (_busy || !_session.HasImage || _session.IsComparing)
             return;
+        StopAnimationPlayback(restoreDocument: true);
         CancelPreviewWork();
         _session.BeginCompare();
         var metrics = _session.SimilarityVsOriginalLabel();
@@ -403,6 +415,8 @@ public partial class MainWindow : Window
 
     private void SetBusy(bool busy, string? status = null)
     {
+        if (busy)
+            StopAnimationPlayback(restoreDocument: true);
         _busy = busy;
         if (status is not null)
             StatusText.Text = status;
@@ -412,6 +426,8 @@ public partial class MainWindow : Window
 
     private void OnSessionChanged()
     {
+        if (!_session.HasAnimation && _animationPlaying)
+            StopAnimationPlayback(restoreDocument: false);
         RefreshUi();
         UpdateMeta();
     }
@@ -474,11 +490,13 @@ public partial class MainWindow : Window
         _viewport.UpdateContentHostSize(PreviewPixelSize());
         UpdateZoomLabel();
         UpdateMeta();
+        UpdateAnimationUi();
 
         if (!has)
         {
             _viewport.Reset();
             ClearCropSelection();
+            StopAnimationPlayback(restoreDocument: false);
             if (!_busy && string.IsNullOrEmpty(StatusText.Text))
                 StatusText.Text = "Ready";
         }
