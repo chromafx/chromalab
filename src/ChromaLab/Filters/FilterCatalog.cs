@@ -139,6 +139,9 @@ public static class FilterCatalog
                 "Invert"
             ),
             Instant("sepia", "Color", "_Sepia", c => c.Sepia()),
+            Instant("red-channel", "Color", "Red channel", c => c.Apply(new RedChannel())),
+            Instant("green-channel", "Color", "Green channel", c => c.Apply(new GreenChannel())),
+            Instant("blue-channel", "Color", "Blue channel", c => c.Apply(new BlueChannel())),
             Parametric(
                 "saturation",
                 "Color",

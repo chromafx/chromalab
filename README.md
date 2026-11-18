@@ -38,7 +38,7 @@ dotnet run --project src/ChromaLab -p:UseLocalChromaFx=false
 
 Tag `v*.*.*` to publish zips via [GitHub Actions](.github/workflows/release.yml). `workflow_dispatch` builds the same zips as artifacts without creating a release.
 
-Bump the library pin with `-p:ChromaFxPackageVersion=0.6.x` (default `0.6.4`) when you want release builds on a newer ChromaFx line.
+Bump the library pin with `-p:ChromaFxPackageVersion=0.6.x` (default `0.6.5`) when you want release builds on a newer ChromaFx line.
 
 ## What’s wired
 
