@@ -8,7 +8,7 @@ Built with **Avalonia**. Local builds use **ProjectReferences** into a sibling `
 
 ## Download
 
-Self-contained zips for **win-x64**, **osx-arm64**, and **linux-x64** are on the [Releases](https://github.com/chromafx/chromalab/releases) page (current: **v0.2.0**).
+Self-contained zips for **win-x64**, **osx-arm64**, and **linux-x64** are on the [Releases](https://github.com/chromafx/chromalab/releases) page (current: **v0.3.0**).
 
 - **Windows** — unzip and run `ChromaLab.exe` (embedded app icon).
 - **macOS** — unzip and open `ChromaLab.app` (Dock/Finder icon from `Assets/icon.icns`).
@@ -58,10 +58,11 @@ Bump the library pin with `-p:ChromaFxPackageVersion=0.6.x` (default `0.6.5`) wh
 - **Shortcuts** — Ctrl/⌘O open, Ctrl/⌘S save, Ctrl/⌘⇧S save as, Ctrl/⌘E export, Ctrl/⌘0 100%, Ctrl/⌘1 fit, Ctrl/⌘± zoom
 - **Zoom / pan** — wheel zoom-to-cursor, drag to pan
 - **Macros** — record catalog Applies (id + params) to `*.chromafx-macro.json`; Open & Run on the active layer; **Bulk Process…** a folder to flattened exports (skips `.ora` / `.gif`)
+- **Toolbar icons** — Lucide SVG subset (`LabIcon`); tinted via `Icon*` brushes (see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md))
 
 ## Roadmap
 
-- Tag **v0.3.0** when ready (macros/bulk, explorers, and polish — GIF play, canvas size, Resize/Rotate/Skew/Perspective/Curves — are on `master`)
+- Next: PR build check; add a test project when filter/session coverage is worth CI
 
 ## License
 
