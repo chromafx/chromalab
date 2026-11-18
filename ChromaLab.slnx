@@ -2,4 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/ChromaLab/ChromaLab.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ChromaLab.Tests/ChromaLab.Tests.csproj" />
+  </Folder>
 </Solution>

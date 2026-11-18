@@ -60,9 +60,17 @@ Bump the library pin with `-p:ChromaFxPackageVersion=0.6.x` (default `0.6.5`) wh
 - **Macros** — record catalog Applies (id + params) to `*.chromafx-macro.json`; Open & Run on the active layer; **Bulk Process…** a folder to flattened exports (skips `.ora` / `.gif`)
 - **Toolbar icons** — Lucide SVG subset (`LabIcon`); tinted via `Icon*` brushes (see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md))
 
+## Tests
+
+```bash
+dotnet test tests/ChromaLab.Tests -c Release
+```
+
+CI runs the same against NuGet ChromaFx (`UseLocalChromaFx=false`) on PRs and `master`.
+
 ## Roadmap
 
-- Next: PR build check; add a test project when filter/session coverage is worth CI
+- Expand headless coverage (bulk macros, more session edge cases); Avalonia UI automation still deferred
 
 ## License
 

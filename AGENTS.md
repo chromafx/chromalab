@@ -35,6 +35,8 @@ Avalonia desktop **image editor** powered by the sibling ChromaFx library (also 
 | `Controls/FilterCatalogView` | Searchable left-rail filter browser |
 | `Controls/LayersPanel` | Layers list with thumbs, visibility, reorder |
 | `MainWindow` (+ `.Document` / `.Filters` / `.Canvas` / `.Layers` / `.Macros` partials) | Editor shell; document IO; filters; viewport/crop; layers; macro record/run |
+| `tests/ChromaLab.Tests/` | Headless xunit.v3 (filters, macros, layers, ORA, session) |
+| `.github/workflows/ci.yml` | PR/master: `dotnet build` + `dotnet test` with `UseLocalChromaFx=false` |
 | `.github/workflows/release.yml` | Tag `v*.*.*` → self-contained zips (`win-x64`, `osx-arm64`, `linux-x64`) |
 
 ## ChromaFx references
@@ -48,8 +50,13 @@ Avalonia desktop **image editor** powered by the sibling ChromaFx library (also 
 ```bash
 dotnet build
 dotnet run --project src/ChromaLab
+dotnet test tests/ChromaLab.Tests -c Release
+# CI / release path (NuGet ChromaFx, catches package global-using clashes):
+dotnet test tests/ChromaLab.Tests -c Release -p:UseLocalChromaFx=false
 dotnet publish src/ChromaLab -c Release -r osx-arm64 --self-contained true -p:UseLocalChromaFx=false
 ```
+
+Headless tests live in `tests/ChromaLab.Tests` (xunit.v3). Prefer logic/session coverage; no Avalonia UI automation yet. `InternalsVisibleTo` grants the test assembly access to `DocumentHistory` / `DocumentStorage` / `LucideIconData`.
 
 `global.json` pins SDK 10 with `rollForward: latestMajor`. On machines with only .NET 11+: `DOTNET_ROLL_FORWARD=LatestMajor` if needed.
 
