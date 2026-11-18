@@ -258,7 +258,7 @@ public partial class FilterInspector : UserControl
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
                     }
-                    : new Image
+                    : new Avalonia.Controls.Image
                     {
                         Source = thumb,
                         Stretch = Stretch.UniformToFill,

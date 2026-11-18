@@ -46,9 +46,9 @@ public static class FilterExplorer
     /// <summary>
     /// Randomizes float/int/bool/choice params within declared ranges (E0 / generative).
     /// </summary>
-    public static void Randomize(FilterEntry entry, FilterValues values, Random? rng = null)
+    public static void Randomize(FilterEntry entry, FilterValues values, System.Random? rng = null)
     {
-        rng ??= Random.Shared;
+        rng ??= System.Random.Shared;
         foreach (var param in entry.Params)
         {
             switch (param.Kind)
@@ -93,9 +93,13 @@ public static class FilterExplorer
     /// <summary>
     /// Builds <paramref name="count"/> independent randomized value bags (E3).
     /// </summary>
-    public static FilterValues[] CreateVariants(FilterEntry entry, int count = VariantCount, Random? rng = null)
+    public static FilterValues[] CreateVariants(
+        FilterEntry entry,
+        int count = VariantCount,
+        System.Random? rng = null
+    )
     {
-        rng ??= Random.Shared;
+        rng ??= System.Random.Shared;
         var result = new FilterValues[count];
         for (var i = 0; i < count; i++)
         {
