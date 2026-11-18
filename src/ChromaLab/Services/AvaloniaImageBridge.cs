@@ -19,6 +19,7 @@ using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using ChromaFx.Core;
+using ChromaFx.Processing;
 
 namespace ChromaLab.Services;
 
@@ -42,16 +43,81 @@ public static class AvaloniaImageBridge
             PixelFormats.Rgba8888,
             AlphaFormat.Unpremul
         );
+        CopyInto(bitmap, image);
+        return bitmap;
+    }
 
-        using var frame = bitmap.Lock();
-        var rowBytes = image.Width * 4;
-        var scratch = new byte[rowBytes];
-        for (var y = 0; y < image.Height; y++)
+    /// <summary>
+    /// Reuses <paramref name="existing"/> when size matches; otherwise disposes it and returns a new bitmap.
+    /// </summary>
+    public static WriteableBitmap UpdateOrCreate(WriteableBitmap? existing, Image image)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        if (image.Width <= 0 || image.Height <= 0)
+            throw new ArgumentException("Image has no pixels.", nameof(image));
+
+        if (
+            existing is not null
+            && existing.PixelSize.Width == image.Width
+            && existing.PixelSize.Height == image.Height
+        )
         {
-            MemoryMarshal.AsBytes(image.GetRowSpan(y)).CopyTo(scratch);
-            Marshal.Copy(scratch, 0, frame.Address + y * frame.RowBytes, rowBytes);
+            CopyInto(existing, image);
+            return existing;
         }
 
-        return bitmap;
+        existing?.Dispose();
+        return ToBitmap(image);
+    }
+
+    /// <summary>
+    /// Aspect-fit downscale into a small ChromaFx image (no full-res clone-first path).
+    /// </summary>
+    public static Image CreateThumbnail(Image source, int maxEdge)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (maxEdge < 1)
+            throw new ArgumentOutOfRangeException(nameof(maxEdge));
+
+        if (source.Width <= 0 || source.Height <= 0)
+            throw new ArgumentException("Image has no pixels.", nameof(source));
+
+        var scale = Math.Min(1.0, maxEdge / (double)Math.Max(source.Width, source.Height));
+        var w = Math.Max(1, (int)Math.Round(source.Width * scale));
+        var h = Math.Max(1, (int)Math.Round(source.Height * scale));
+        if (w == source.Width && h == source.Height)
+            return source.Clone();
+
+        var thumb = source.Clone();
+        thumb.Mutate(c => c.Resize(w, h));
+        return thumb;
+    }
+
+    /// <summary>
+    /// Downscales then converts to a bitmap for layer/variant thumbs.
+    /// </summary>
+    public static WriteableBitmap ToThumbnailBitmap(Image source, int maxEdge)
+    {
+        var thumb = CreateThumbnail(source, maxEdge);
+        try
+        {
+            return ToBitmap(thumb);
+        }
+        finally
+        {
+            // CreateThumbnail always returns a new image.
+        }
+    }
+
+    private static unsafe void CopyInto(WriteableBitmap bitmap, Image image)
+    {
+        using var frame = bitmap.Lock();
+        var rowBytes = image.Width * 4;
+        for (var y = 0; y < image.Height; y++)
+        {
+            var src = MemoryMarshal.AsBytes(image.GetRowSpan(y));
+            var dest = new Span<byte>((void*)(frame.Address + y * frame.RowBytes), rowBytes);
+            src.CopyTo(dest);
+        }
     }
 }

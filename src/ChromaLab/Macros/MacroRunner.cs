@@ -53,4 +53,25 @@ public static class MacroRunner
             .Where(id => FilterCatalog.All.All(e => e.Id != id))
             .Distinct(StringComparer.Ordinal)
             .ToList();
+
+    /// <summary>
+    /// Returns null when valid; otherwise an error message listing unknown ids.
+    /// </summary>
+    public static string? Validate(MacroDefinition macro)
+    {
+        var missing = MissingIds(macro);
+        return missing.Count == 0
+            ? null
+            : "Unknown filter id(s): " + string.Join(", ", missing);
+    }
+
+    /// <summary>
+    /// Throws when the macro references unknown catalog ids.
+    /// </summary>
+    public static void ValidateOrThrow(MacroDefinition macro)
+    {
+        var error = Validate(macro);
+        if (error is not null)
+            throw new InvalidOperationException(error);
+    }
 }

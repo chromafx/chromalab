@@ -14,35 +14,38 @@
                  LetterSpacing="0.6" />
 
       <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,12,0,0">
-        <Button Name="ApplyButton"
-                Content="Apply"
-                HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Center"
-                IsDefault="True"
-                IsEnabled="False" />
-        <Button Name="CancelButton"
-                Content="Cancel"
-                HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Center"
-                IsCancel="True"
-                IsEnabled="False" />
-        <Button Name="ResetParamsButton"
-                Content="Reset parameters"
-                HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Center"
-                IsEnabled="False" />
-        <Button Name="RandomizeButton"
-                Content="Randomize"
-                HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Center"
-                IsVisible="False"
-                IsEnabled="False" />
-        <Button Name="RefreshVariantsButton"
-                Content="Refresh variants"
-                HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Center"
-                IsVisible="False"
-                IsEnabled="False" />
+        <Grid ColumnDefinitions="*,8,*">
+          <Button Name="ApplyButton"
+                  Grid.Column="0"
+                  Content="Apply"
+                  Classes="accent"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Center"
+                  IsDefault="True"
+                  IsEnabled="False" />
+          <Button Name="CancelButton"
+                  Grid.Column="2"
+                  Content="Cancel"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Center"
+                  IsCancel="True"
+                  IsEnabled="False" />
+        </Grid>
+        <Grid ColumnDefinitions="*,8,*">
+          <Button Name="ResetParamsButton"
+                  Grid.Column="0"
+                  Content="Reset"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Center"
+                  IsEnabled="False" />
+          <Button Name="RandomizeButton"
+                  Grid.Column="2"
+                  Content="Randomize"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Center"
+                  IsVisible="False"
+                  IsEnabled="False" />
+        </Grid>
       </StackPanel>
 
       <ScrollViewer HorizontalScrollBarVisibility="Disabled"
@@ -68,14 +71,27 @@
           <StackPanel Name="VariantsPanel"
                       Spacing="6"
                       IsVisible="False">
-            <TextBlock Text="Variants"
-                       FontSize="10"
-                       FontWeight="SemiBold"
-                       Opacity="0.55"
-                       LetterSpacing="0.6" />
-            <StackPanel Name="VariantsHost"
-                        Orientation="Horizontal"
-                        Spacing="6" />
+            <DockPanel>
+              <Button Name="RefreshVariantsButton"
+                      DockPanel.Dock="Right"
+                      Content="Refresh"
+                      Padding="8,2"
+                      FontSize="11"
+                      IsVisible="False"
+                      IsEnabled="False" />
+              <TextBlock Text="Variants"
+                         FontSize="10"
+                         FontWeight="SemiBold"
+                         Opacity="0.55"
+                         LetterSpacing="0.6"
+                         VerticalAlignment="Center" />
+            </DockPanel>
+            <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Disabled">
+              <StackPanel Name="VariantsHost"
+                          Orientation="Horizontal"
+                          Spacing="4" />
+            </ScrollViewer>
           </StackPanel>
         </StackPanel>
       </ScrollViewer>

@@ -65,6 +65,6 @@ Bump the library pin with `-p:ChromaFxPackageVersion=0.6.x` (default `0.6.5`) wh
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0 — see [LICENSE](LICENSE). In-app toolbar glyphs are a Lucide SVG subset (ISC; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
 
 Copyright 2026 Ho Tzin Mein.

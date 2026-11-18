@@ -17,6 +17,7 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using ChromaFx.IO.Encoders;
+using ChromaLab.Controls;
 using ChromaLab.Services;
 
 namespace ChromaLab.Dialogs;
@@ -93,8 +94,9 @@ public partial class ExportDialog : Window
         PathBox.Text = BuildSuggestedPath(suggestedPath, fallbackFileName, initial);
 
         FormatCombo.SelectionChanged += (_, _) => OnFormatChanged();
+        PathBox.LostFocus += (_, _) => SyncFormatFromPath();
         BrowseButton.Click += async (_, _) => await BrowseAsync();
-        PrimaryButton.Click += (_, _) => TryAccept();
+        PrimaryButton.Click += async (_, _) => await TryAcceptAsync();
         CancelButton.Click += (_, _) => Close();
 
         RebuildOptions();
@@ -126,29 +128,12 @@ public partial class ExportDialog : Window
         PathBox.Text = EnsureExtension(PathBox.Text, format);
     }
 
-    private void RebuildOptions()
-    {
-        OptionsHost.Children.Clear();
-        if (FormatCombo.SelectedItem is not ExportFormat format)
-            return;
-
-        var panel = format.CreateOptionsPanel(_options);
-        if (panel is null)
-        {
-            OptionsHost.Children.Add(
-                new TextBlock
-                {
-                    Text = "No encoder options for this format.",
-                    FontSize = 12,
-                    Opacity = 0.55,
-                }
-            );
-        }
-        else
-        {
-            OptionsHost.Children.Add(panel);
-        }
-    }
+    private void RebuildOptions() =>
+        ExportOptionsPanel.Rebuild(
+            OptionsHost,
+            FormatCombo.SelectedItem as ExportFormat,
+            _options
+        );
 
     private void UpdateNativeHint()
     {
@@ -180,8 +165,45 @@ public partial class ExportDialog : Window
             PathBox.Text = EnsureExtension(path, format);
     }
 
-    private void TryAccept()
+    private void SyncFormatFromPath()
     {
+        if (_suppressFormatChange)
+            return;
+
+        var path = PathBox.Text?.Trim();
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        var match = ExportFormatCatalog.FromExtension(System.IO.Path.GetExtension(path));
+        if (match is null || FormatCombo.SelectedItem is ExportFormat current && current.Id == match.Id)
+            return;
+
+        if (FormatCombo.ItemsSource is not System.Collections.IEnumerable items)
+            return;
+
+        ExportFormat? available = null;
+        foreach (var item in items)
+        {
+            if (item is ExportFormat f && f.Id == match.Id)
+            {
+                available = f;
+                break;
+            }
+        }
+
+        if (available is null)
+            return;
+
+        _suppressFormatChange = true;
+        FormatCombo.SelectedItem = available;
+        _suppressFormatChange = false;
+        RebuildOptions();
+        UpdateNativeHint();
+    }
+
+    private async Task TryAcceptAsync()
+    {
+        SyncFormatFromPath();
         if (FormatCombo.SelectedItem is not ExportFormat format)
             return;
 
@@ -194,6 +216,16 @@ public partial class ExportDialog : Window
 
         path = EnsureExtension(path, format);
         PathBox.Text = path;
+
+        if (File.Exists(path))
+        {
+            var overwrite = await ConfirmDialog.AskYesNoAsync(
+                this,
+                $"“{System.IO.Path.GetFileName(path)}” already exists. Overwrite it?"
+            );
+            if (!overwrite)
+                return;
+        }
 
         try
         {

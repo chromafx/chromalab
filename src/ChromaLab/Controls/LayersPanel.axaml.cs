@@ -18,7 +18,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using ChromaFx.Processing;
+using Avalonia.VisualTree;
 using ChromaLab.Layers;
 using ChromaLab.Services;
 using FxImage = ChromaFx.Core.Image;
@@ -28,9 +28,12 @@ namespace ChromaLab.Controls;
 public partial class LayersPanel : UserControl
 {
     private const int ThumbSize = 40;
-    private readonly List<WriteableBitmap> _thumbs = [];
+    private readonly Dictionary<int, (FxImage Pixels, int W, int H, WriteableBitmap Bmp)> _thumbCache =
+        [];
+    private readonly List<WriteableBitmap> _ownedThumbs = [];
     private bool _enabled;
     private bool _suppressToggle;
+    private LayerDocument? _document;
 
     public LayersPanel()
     {
@@ -40,6 +43,7 @@ public partial class LayersPanel : UserControl
         DeleteButton.Click += (_, _) => DeleteRequested?.Invoke(this, EventArgs.Empty);
         UpButton.Click += (_, _) => MoveUpRequested?.Invoke(this, EventArgs.Empty);
         DownButton.Click += (_, _) => MoveDownRequested?.Invoke(this, EventArgs.Empty);
+        DetachedFromVisualTree += (_, _) => ClearThumbs();
         SetEnabled(false);
     }
 
@@ -61,8 +65,12 @@ public partial class LayersPanel : UserControl
         DownButton.IsEnabled = enabled;
     }
 
+    /// <summary>
+    /// Full rebuild of layer rows and thumbnails.
+    /// </summary>
     public void Refresh(LayerDocument? document, bool canEdit)
     {
+        _document = document;
         ClearThumbs();
         LayersHost.Children.Clear();
 
@@ -72,18 +80,11 @@ public partial class LayersPanel : UserControl
             return;
         }
 
-        _enabled = canEdit;
-        var multi = document.Layers.Count > 1;
-        AddButton.IsEnabled = canEdit;
-        DupButton.IsEnabled = canEdit;
-        DeleteButton.IsEnabled = canEdit && multi;
-        UpButton.IsEnabled = canEdit && document.ActiveIndex < document.Layers.Count - 1;
-        DownButton.IsEnabled = canEdit && document.ActiveIndex > 0;
+        ApplyChrome(document, canEdit);
 
         _suppressToggle = true;
         try
         {
-            // Top of list = top of stack (reverse of storage order).
             for (var display = document.Layers.Count - 1; display >= 0; display--)
                 AddRow(document, display);
         }
@@ -93,6 +94,65 @@ public partial class LayersPanel : UserControl
         }
     }
 
+    /// <summary>
+    /// Updates active highlight and chrome without rebuilding thumbnails.
+    /// </summary>
+    public void RefreshSelection(LayerDocument? document, bool canEdit)
+    {
+        if (document is null || document.Layers.Count == 0)
+        {
+            Refresh(document, canEdit);
+            return;
+        }
+
+        if (
+            _document != document
+            || LayersHost.Children.Count != document.Layers.Count
+        )
+        {
+            Refresh(document, canEdit);
+            return;
+        }
+
+        _document = document;
+        ApplyChrome(document, canEdit);
+
+        // Storage index 0 is bottom; UI rows are top-first.
+        for (var display = 0; display < document.Layers.Count; display++)
+        {
+            var storageIndex = document.Layers.Count - 1 - display;
+            if (LayersHost.Children[display] is not Border row)
+                continue;
+
+            var active = storageIndex == document.ActiveIndex;
+            row.Background = active
+                ? (IBrush?)(
+                    this.FindResource("EditorAccentMutedBrush") as IBrush
+                    ?? new SolidColorBrush(Avalonia.Media.Color.Parse("#2A3F55"))
+                )
+                : Brushes.Transparent;
+
+            if (row.Child is Grid grid
+                && grid.Children.OfType<DockPanel>().FirstOrDefault() is { } mid
+                && mid.Children.OfType<TextBlock>().FirstOrDefault() is { } name)
+            {
+                name.FontWeight = active ? FontWeight.SemiBold : FontWeight.Normal;
+                name.Opacity = document.Layers[storageIndex].Visible ? 1 : 0.45;
+            }
+        }
+    }
+
+    private void ApplyChrome(LayerDocument document, bool canEdit)
+    {
+        _enabled = canEdit;
+        var multi = document.Layers.Count > 1;
+        AddButton.IsEnabled = canEdit;
+        DupButton.IsEnabled = canEdit;
+        DeleteButton.IsEnabled = canEdit && multi;
+        UpButton.IsEnabled = canEdit && document.ActiveIndex < document.Layers.Count - 1;
+        DownButton.IsEnabled = canEdit && document.ActiveIndex > 0;
+    }
+
     private void AddRow(LayerDocument document, int index)
     {
         var layer = document.Layers[index];
@@ -100,6 +160,7 @@ public partial class LayersPanel : UserControl
 
         var row = new Border
         {
+            Classes = { "layer-row" },
             Background = active
                 ? (IBrush?)(
                     this.FindResource("EditorAccentMutedBrush") as IBrush
@@ -109,6 +170,7 @@ public partial class LayersPanel : UserControl
             CornerRadius = new Avalonia.CornerRadius(4),
             Padding = new Avalonia.Thickness(4),
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+            Opacity = layer.Visible ? 1 : 0.85,
         };
 
         var grid = new Grid
@@ -133,7 +195,7 @@ public partial class LayersPanel : UserControl
         };
         Grid.SetColumn(eye, 0);
 
-        var thumb = BuildThumb(layer.Pixels);
+        var thumb = GetOrBuildThumb(index, layer.Pixels);
         var name = new TextBlock
         {
             Text = layer.Name,
@@ -142,6 +204,7 @@ public partial class LayersPanel : UserControl
             TextTrimming = TextTrimming.CharacterEllipsis,
             Margin = new Avalonia.Thickness(8, 0, 4, 0),
             FontWeight = active ? FontWeight.SemiBold : FontWeight.Normal,
+            Opacity = layer.Visible ? 1 : 0.45,
         };
 
         var mid = new DockPanel();
@@ -153,12 +216,14 @@ public partial class LayersPanel : UserControl
             ClipToBounds = true,
             BorderBrush = this.FindResource("EditorBorderBrush") as IBrush,
             BorderThickness = new Avalonia.Thickness(1),
+            Background = this.FindResource("CheckerBrush") as IBrush,
             Child = new Avalonia.Controls.Image
             {
                 Source = thumb,
                 Stretch = Stretch.Uniform,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
+                Opacity = layer.Visible ? 1 : 0.4,
             },
         };
         DockPanel.SetDock(thumbBorder, Dock.Left);
@@ -172,7 +237,7 @@ public partial class LayersPanel : UserControl
 
         row.PointerPressed += (_, e) =>
         {
-            if (e.Source is CheckBox)
+            if ((e.Source as Avalonia.Visual)?.FindAncestorOfType<CheckBox>(includeSelf: true) is not null)
                 return;
             LayerSelected?.Invoke(this, index);
         };
@@ -180,21 +245,13 @@ public partial class LayersPanel : UserControl
         LayersHost.Children.Add(row);
     }
 
-    private WriteableBitmap? BuildThumb(FxImage pixels)
+    private WriteableBitmap? GetOrBuildThumb(int index, FxImage pixels)
     {
         try
         {
-            var clone = pixels.Clone();
-            var scale = Math.Min(
-                (double)ThumbSize / Math.Max(1, clone.Width),
-                (double)ThumbSize / Math.Max(1, clone.Height)
-            );
-            var w = Math.Max(1, (int)Math.Round(clone.Width * scale));
-            var h = Math.Max(1, (int)Math.Round(clone.Height * scale));
-            if (w != clone.Width || h != clone.Height)
-                clone.Mutate(c => c.Resize(w, h));
-            var bmp = AvaloniaImageBridge.ToBitmap(clone);
-            _thumbs.Add(bmp);
+            var bmp = AvaloniaImageBridge.ToThumbnailBitmap(pixels, ThumbSize);
+            _ownedThumbs.Add(bmp);
+            _thumbCache[index] = (pixels, pixels.Width, pixels.Height, bmp);
             return bmp;
         }
         catch
@@ -205,8 +262,9 @@ public partial class LayersPanel : UserControl
 
     private void ClearThumbs()
     {
-        foreach (var thumb in _thumbs)
+        foreach (var thumb in _ownedThumbs)
             thumb.Dispose();
-        _thumbs.Clear();
+        _ownedThumbs.Clear();
+        _thumbCache.Clear();
     }
 }

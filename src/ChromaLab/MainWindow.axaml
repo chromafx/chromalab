@@ -79,55 +79,49 @@
                     HorizontalAlignment="Right"
                     Spacing="0"
                     VerticalAlignment="Center">
-          <Button Name="OpenButton" Classes="tool" ToolTip.Tip="Open (Ctrl+O)">
-            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                  Data="M2,3 H8 L10,5 H18 V17 H2 Z M2,3 V17" />
+          <Button Name="OpenButton" Classes="tool">
+            <controls:LabIcon Kind="folder-open" Size="16" Foreground="{DynamicResource IconMutedBrush}" />
           </Button>
-          <Button Name="SaveButton" Classes="tool" ToolTip.Tip="Save (Ctrl+S)" IsEnabled="False">
-            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                  Data="M3,2 H13 L17,6 V18 H3 Z M6,2 V8 H12 V2 M6,12 H14 V18 H6 Z" />
+          <Button Name="SaveButton" Classes="tool" IsEnabled="False">
+            <controls:LabIcon Kind="save" Size="16" Foreground="{DynamicResource IconAccentGradient}" />
           </Button>
-          <Button Name="ExportButton" Classes="tool" ToolTip.Tip="Export… (Ctrl+E)" IsEnabled="False">
-            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                  Data="M8,2 V11 M5,8 L8,11 L11,8 M3,13 H13 V16 H3 Z" />
+          <Button Name="ExportButton" Classes="tool" IsEnabled="False">
+            <controls:LabIcon Kind="upload" Size="16" Foreground="{DynamicResource IconSuccessGradient}" />
           </Button>
 
           <Separator Classes="tool-sep" />
 
-          <Button Name="UndoButton" Classes="tool" ToolTip.Tip="Undo (Ctrl+Z)" IsEnabled="False">
-            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                  Data="M7,3 L2,8 L7,13 M2,8 H12 A4,4 0 0 1 12,16 H8" />
+          <Button Name="UndoButton" Classes="tool" IsEnabled="False">
+            <controls:LabIcon Kind="undo-2" Size="16" Foreground="{DynamicResource IconAccentBrush}" />
           </Button>
-          <Button Name="RedoButton" Classes="tool" ToolTip.Tip="Redo (Ctrl+Y)" IsEnabled="False">
-            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                  Data="M9,3 L14,8 L9,13 M14,8 H4 A4,4 0 0 0 4,16 H8" />
+          <Button Name="RedoButton" Classes="tool" IsEnabled="False">
+            <controls:LabIcon Kind="redo-2" Size="16" Foreground="{DynamicResource IconAccentBrush}" />
           </Button>
-          <Button Name="ResetButton" Classes="tool" ToolTip.Tip="Reset to original" IsEnabled="False">
-            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                  Data="M3,8 A5,5 0 1 1 8,13 M3,8 L5,5 M3,8 L5,11" />
+          <Button Name="ResetButton" Classes="tool" IsEnabled="False">
+            <controls:LabIcon Kind="rotate-ccw" Size="16" Foreground="{DynamicResource IconMutedBrush}" />
           </Button>
 
           <Separator Classes="tool-sep" />
 
-          <Button Name="ZoomOutButton" Classes="tool" ToolTip.Tip="Zoom out (Ctrl+-)" IsEnabled="False">
-            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                  Data="M2,8 H14 M12,4 A5,5 0 1 0 12,12" />
+          <Button Name="ZoomOutButton" Classes="tool" IsEnabled="False">
+            <controls:LabIcon Kind="zoom-out" Size="16" Foreground="{DynamicResource IconMutedBrush}" />
           </Button>
-          <Button Name="ZoomInButton" Classes="tool" ToolTip.Tip="Zoom in (Ctrl+=)" IsEnabled="False">
-            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                  Data="M2,8 H10 M6,4 V12 M12,4 A5,5 0 1 0 12,12" />
+          <Button Name="ZoomInButton" Classes="tool" IsEnabled="False">
+            <controls:LabIcon Kind="zoom-in" Size="16" Foreground="{DynamicResource IconMutedBrush}" />
           </Button>
-          <Button Name="ActualSizeButton" Classes="tool" ToolTip.Tip="Actual size 100% (Ctrl+0)" IsEnabled="False">
-            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                  Data="M2,2 H6 V6 H2 Z M10,10 H14 V14 H10 Z M7,7 H9 V9 H7 Z" />
+          <Button Name="ActualSizeButton" Classes="tool" IsEnabled="False">
+            <TextBlock Text="1:1"
+                       FontSize="11"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource IconMutedBrush}"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Center" />
           </Button>
-          <Button Name="FitButton" Classes="tool" ToolTip.Tip="Fit to window (Ctrl+1)" IsEnabled="False">
-            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                  Data="M2,2 H6 V4 H4 V6 H2 Z M10,2 H14 V6 H12 V4 H10 Z M2,10 H4 V12 H6 V14 H2 Z M12,10 H14 V14 H10 V12 H12 Z" />
+          <Button Name="FitButton" Classes="tool" IsEnabled="False">
+            <controls:LabIcon Kind="maximize-2" Size="16" Foreground="{DynamicResource IconMutedBrush}" />
           </Button>
-          <Button Name="CompareButton" Classes="tool" ToolTip.Tip="Hold to compare with original (Space)" IsEnabled="False">
-            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"
-                  Data="M2,3 H7 V13 H2 Z M9,3 H14 V13 H9 Z M7,8 H9" />
+          <Button Name="CompareButton" Classes="tool" IsEnabled="False">
+            <controls:LabIcon Kind="columns-2" Size="16" Foreground="{DynamicResource IconAccentGradient}" />
           </Button>
 
           <Separator Name="FavoriteToolsSep" Classes="tool-sep" IsVisible="False" />
@@ -157,12 +151,34 @@
                    Margin="16,0,0,0"
                    VerticalAlignment="Center"
                    TextTrimming="CharacterEllipsis" />
-        <TextBlock Name="StatusText"
-                   Text="Ready"
-                   FontSize="12"
-                   Opacity="0.9"
-                   VerticalAlignment="Center"
-                   TextTrimming="CharacterEllipsis" />
+        <Border Name="RecordingBadge"
+                DockPanel.Dock="Right"
+                Background="{DynamicResource EditorAccentMutedBrush}"
+                CornerRadius="3"
+                Padding="6,2"
+                Margin="0,0,12,0"
+                VerticalAlignment="Center"
+                IsVisible="False">
+          <TextBlock Text="REC"
+                     FontSize="10"
+                     FontWeight="SemiBold"
+                     Foreground="{DynamicResource EditorAccentBrush}"
+                     VerticalAlignment="Center" />
+        </Border>
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <ProgressBar Name="BusyProgress"
+                       Width="72"
+                       Height="4"
+                       IsIndeterminate="True"
+                       IsVisible="False"
+                       VerticalAlignment="Center" />
+          <TextBlock Name="StatusText"
+                     Text="Ready"
+                     FontSize="12"
+                     Opacity="0.9"
+                     VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis" />
+        </StackPanel>
       </DockPanel>
     </Border>
 
@@ -228,14 +244,14 @@
                        Margin="4,2,4,0" />
           </StackPanel>
           <TextBlock Name="CropHint"
-                     Text="Drag a rectangle on the canvas, then Apply Crop in the inspector area — or press Enter."
+                     Text="Drag a rectangle on the canvas, then Apply Crop below — or press Enter."
                      FontSize="11"
                      Opacity="0.65"
                      TextWrapping="Wrap"
                      Margin="4,10,4,0"
                      IsVisible="False" />
           <StackPanel Name="CropActions" Spacing="6" Margin="0,10,0,0" IsVisible="False">
-            <Button Name="ApplyCropButton" Content="Apply Crop" HorizontalAlignment="Stretch" IsEnabled="False" />
+            <Button Name="ApplyCropButton" Content="Apply Crop" Classes="accent" HorizontalAlignment="Stretch" IsEnabled="False" />
             <Button Name="CancelCropButton" Content="Cancel Crop" HorizontalAlignment="Stretch" IsEnabled="False" />
           </StackPanel>
         </StackPanel>
@@ -269,6 +285,10 @@
                          FontSize="14"
                          Opacity="0.8"
                          HorizontalAlignment="Center" />
+              <TextBlock Text="PNG, JPEG, WebP, GIF, TIFF, BMP, TGA, OpenRaster"
+                         FontSize="11"
+                         Opacity="0.5"
+                         HorizontalAlignment="Center" />
               <Button Name="EmptyOpenButton"
                       Content="Open…"
                       HorizontalAlignment="Center"
@@ -286,23 +306,31 @@
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Center"
                                   IsVisible="False">
-            <Panel>
-              <!-- Checkerboard under alpha -->
-              <Border Name="Checkerboard"
-                      Background="{DynamicResource CheckerBrush}" />
-              <Border Name="PreviewFrame" Cursor="SizeAll">
-                <Panel>
-                  <Image Name="PreviewImage" Stretch="None" />
-                  <Canvas Name="CropOverlay" IsHitTestVisible="False" IsVisible="False">
-                    <Rectangle Name="CropRect"
-                               Stroke="{DynamicResource EditorAccentBrush}"
-                               StrokeThickness="1.5"
-                               Fill="#403D8FD1"
-                               IsVisible="False" />
-                  </Canvas>
-                </Panel>
-              </Border>
-            </Panel>
+            <Border BorderBrush="{DynamicResource EditorBorderBrush}"
+                    BorderThickness="1"
+                    Background="{DynamicResource EditorCanvasBrush}">
+              <Panel>
+                <!-- Checkerboard under alpha -->
+                <Border Name="Checkerboard"
+                        Background="{DynamicResource CheckerBrush}" />
+                <Border Name="PreviewFrame" Cursor="SizeAll">
+                  <Panel>
+                    <Image Name="PreviewImage" Stretch="None" />
+                    <Canvas Name="CropOverlay" IsHitTestVisible="False" IsVisible="False">
+                      <Rectangle Name="CropShadeTop" Fill="#99000000" IsVisible="False" />
+                      <Rectangle Name="CropShadeBottom" Fill="#99000000" IsVisible="False" />
+                      <Rectangle Name="CropShadeLeft" Fill="#99000000" IsVisible="False" />
+                      <Rectangle Name="CropShadeRight" Fill="#99000000" IsVisible="False" />
+                      <Rectangle Name="CropRect"
+                                 Stroke="{DynamicResource EditorAccentBrush}"
+                                 StrokeThickness="1.5"
+                                 Fill="Transparent"
+                                 IsVisible="False" />
+                    </Canvas>
+                  </Panel>
+                </Border>
+              </Panel>
+            </Border>
           </LayoutTransformControl>
         </Panel>
       </ScrollViewer>

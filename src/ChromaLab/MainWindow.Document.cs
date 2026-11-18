@@ -82,11 +82,9 @@ public partial class MainWindow
 
         try
         {
-            CancelPreviewWork();
-            ClearCropSelection();
+            CancelTransientModes(clearInspector: true);
             _session.Reset();
             StatusText.Text = $"Reset · {_session.SizeLabel}";
-            UpdateMeta();
         }
         catch (Exception ex)
         {
@@ -99,9 +97,7 @@ public partial class MainWindow
         if (_busy || !_session.HasImage || _session.Document is null)
             return;
 
-        StopAnimationPlayback(restoreDocument: true);
-        CancelPreviewWork();
-        ClearCropSelection();
+        CancelTransientModes(clearInspector: false);
 
         var doc = _session.Document;
         var result = await CanvasSizeDialog.ShowAsync(this, doc.Width, doc.Height);
@@ -112,7 +108,6 @@ public partial class MainWindow
         {
             _session.ResizeCanvas(result.Value.Width, result.Value.Height);
             StatusText.Text = $"Canvas · {_session.SizeLabel}";
-            UpdateMeta();
             FitToWindow();
         }
         catch (Exception ex)
@@ -125,26 +120,18 @@ public partial class MainWindow
     {
         if (_busy)
             return;
-        CancelPreviewWork();
-        ClearCropSelection();
+        CancelTransientModes(clearInspector: true);
         if (_session.Undo())
-        {
             StatusText.Text = $"Undo · {_session.SizeLabel}";
-            UpdateMeta();
-        }
     }
 
     private void TryRedo()
     {
         if (_busy)
             return;
-        CancelPreviewWork();
-        ClearCropSelection();
+        CancelTransientModes(clearInspector: true);
         if (_session.Redo())
-        {
             StatusText.Text = $"Redo · {_session.SizeLabel}";
-            UpdateMeta();
-        }
     }
 
     private void OnDragOver(object? sender, DragEventArgs e)
@@ -181,16 +168,13 @@ public partial class MainWindow
 
     private async Task OpenPathAsync(string path)
     {
-        CancelInspectorPreview();
-        Inspector.Clear();
-        ClearCropSelection();
+        CancelTransientModes(clearInspector: true);
         SetBusy(true, "Opening…");
         try
         {
             await _session.OpenAsync(path);
             _viewport.FitPending = true;
             StatusText.Text = $"Opened {_session.DisplayName}";
-            UpdateMeta();
             Dispatcher.UIThread.Post(FitToWindow, DispatcherPriority.Loaded);
         }
         catch (Exception ex)
@@ -214,7 +198,6 @@ public partial class MainWindow
         {
             await _session.SaveAsync(_session.Path, encoder);
             StatusText.Text = $"Saved → {_session.DisplayName}";
-            UpdateMeta();
             return true;
         }
         catch (Exception ex)
@@ -244,7 +227,6 @@ public partial class MainWindow
         {
             await _session.SaveAsync(result.Path, result.Encoder);
             StatusText.Text = $"Saved → {_session.DisplayName} ({result.Format.DisplayName})";
-            UpdateMeta();
             return true;
         }
         catch (Exception ex)

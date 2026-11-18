@@ -16,7 +16,6 @@
 
 using Avalonia.Media.Imaging;
 using ChromaFx.Core;
-using ChromaFx.IO;
 using ChromaFx.IO.Encoders;
 using ChromaFx.Processing;
 using ChromaFx.Processing.Numerics;
@@ -38,128 +37,55 @@ public sealed class ImageSession : IDisposable
     /// </summary>
     public const int MaxHistory = 24;
 
+    private readonly DocumentHistory _history = new();
     private LayerDocument? _original;
+    private Image? _originalComposite;
     private LayerDocument? _document;
     private Image? _composite;
     private WriteableBitmap? _preview;
     private int _previewGeneration;
+    private int _previewInFlight;
     private bool _comparing;
     private Animation? _animation;
     private bool _showingAnimationFrame;
 
-    // Index 0 = oldest; end = most recent snapshot.
-    private readonly List<LayerDocument> _undo = [];
-    private readonly List<LayerDocument> _redo = [];
-
     /// <summary>
     /// Raised after the working document or preview changes.
     /// </summary>
-    public event EventHandler? Changed;
+    public event EventHandler<SessionChangeKind>? Changed;
 
-    /// <summary>
-    /// Gets whether a document is loaded.
-    /// </summary>
     public bool HasImage => _document is not null;
-
-    /// <summary>
-    /// Gets the working layer document when loaded.
-    /// </summary>
     public LayerDocument? Document => _document;
-
-    /// <summary>
-    /// Gets whether Undo is available.
-    /// </summary>
-    public bool CanUndo => _undo.Count > 0;
-
-    /// <summary>
-    /// Gets whether Redo is available.
-    /// </summary>
-    public bool CanRedo => _redo.Count > 0;
-
-    /// <summary>
-    /// Gets whether the displayed preview is a live filter preview (not yet Apply'd).
-    /// </summary>
+    public bool CanUndo => _history.CanUndo;
+    public bool CanRedo => _history.CanRedo;
     public bool IsPreviewing { get; private set; }
-
-    /// <summary>
-    /// Gets whether the working document differs from the last open/save/reset baseline.
-    /// </summary>
     public bool IsDirty { get; private set; }
-
-    /// <summary>
-    /// Gets the current file path when known.
-    /// </summary>
     public string? Path { get; private set; }
 
-    /// <summary>
-    /// Gets image size text for the status bar.
-    /// </summary>
     public string SizeLabel =>
         _document is null ? "No image" : $"{_document.Width}×{_document.Height}";
 
-    /// <summary>
-    /// Gets active layer status text for the status bar.
-    /// </summary>
     public string LayerLabel => _document?.LayerStatusLabel ?? "";
 
-    /// <summary>
-    /// Gets a short display name for the open file (or "Untitled").
-    /// </summary>
     public string DisplayName =>
         Path is null ? "Untitled" : System.IO.Path.GetFileName(Path);
 
-    /// <summary>
-    /// Gets the Avalonia preview (null when empty).
-    /// </summary>
     public WriteableBitmap? Preview => _preview;
-
-    /// <summary>
-    /// Gets whether a multi-frame animation was loaded for play-only preview (GIF).
-    /// </summary>
     public bool HasAnimation => _animation is { Count: > 1 };
-
-    /// <summary>
-    /// Gets animation frame count (0 when none).
-    /// </summary>
     public int AnimationFrameCount => _animation?.Count ?? 0;
-
-    /// <summary>
-    /// Gets whether the preview is currently showing an animation frame (not the document composite).
-    /// </summary>
     public bool IsShowingAnimationFrame => _showingAnimationFrame;
-
-    /// <summary>
-    /// Loads an image or .ora from disk into the session (clears history). Prefer <see cref="OpenAsync"/>.
-    /// </summary>
-    public void Open(string path)
-    {
-        var (doc, anim) = LoadDocumentAndAnimation(path);
-        Replace(doc, path, clearHistory: true, dirty: false, anim);
-    }
+    public bool IsComparing => _comparing;
+    public ushort AnimationRepeatCount => _animation?.RepeatCount ?? 0;
 
     /// <summary>
     /// Loads off the UI thread, then swaps state on the caller context.
     /// </summary>
     public async Task OpenAsync(string path, CancellationToken cancellationToken = default)
     {
-        var (doc, anim) = await Task.Run(() => LoadDocumentAndAnimation(path), cancellationToken)
+        var (doc, anim) = await Task.Run(() => DocumentStorage.Load(path), cancellationToken)
             .ConfigureAwait(true);
         cancellationToken.ThrowIfCancellationRequested();
         Replace(doc, path, clearHistory: true, dirty: false, anim);
-    }
-
-    /// <summary>
-    /// Saves the document (.ora) or composite (other formats).
-    /// Updates <see cref="Path"/> and clears dirty.
-    /// </summary>
-    public void Save(string path, IImageEncoder? encoder = null)
-    {
-        if (_document is null || _composite is null)
-            throw new InvalidOperationException("No image loaded.");
-        WritePath(_document, _composite, path, encoder);
-        Path = path;
-        IsDirty = false;
-        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -174,14 +100,25 @@ public sealed class ImageSession : IDisposable
         if (_document is null || _composite is null)
             throw new InvalidOperationException("No image loaded.");
 
-        var docSnap = _document.Clone();
-        var compositeSnap = _composite.Clone();
-        await Task.Run(() => WritePath(docSnap, compositeSnap, path, encoder), cancellationToken)
+        var ora = OraCodec.IsOraPath(path);
+        LayerDocument? docSnap = ora ? _document.Clone() : null;
+        Image? compositeSnap = ora ? null : _composite.Clone();
+
+        await Task.Run(
+                () =>
+                {
+                    if (ora)
+                        DocumentStorage.Write(docSnap!, null, path, encoder);
+                    else
+                        DocumentStorage.WriteFile(compositeSnap!, path, encoder);
+                },
+                cancellationToken
+            )
             .ConfigureAwait(true);
         cancellationToken.ThrowIfCancellationRequested();
         Path = path;
         IsDirty = false;
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged(SessionChangeKind.Full);
     }
 
     /// <summary>
@@ -198,7 +135,7 @@ public sealed class ImageSession : IDisposable
 
         ArgumentNullException.ThrowIfNull(encoder);
         var snapshot = _composite.Clone();
-        await Task.Run(() => WriteFile(snapshot, path, encoder), cancellationToken)
+        await Task.Run(() => DocumentStorage.WriteFile(snapshot, path, encoder), cancellationToken)
             .ConfigureAwait(true);
         cancellationToken.ThrowIfCancellationRequested();
     }
@@ -212,32 +149,10 @@ public sealed class ImageSession : IDisposable
             return;
 
         EndPreview();
-        Push(_undo, _document.Clone());
-        Clear(_redo);
+        _history.PushUndo(_document.Clone());
         _document = _original.Clone();
         IsDirty = false;
-        RebuildComposite();
-        RefreshPreview();
-        Changed?.Invoke(this, EventArgs.Empty);
-    }
-
-    /// <summary>
-    /// Mutates the active layer (snapshots for undo first) and refreshes the composite preview.
-    /// Prefer <see cref="MutateAsync"/> from the UI.
-    /// </summary>
-    public void Mutate(Action<IImageProcessingContext> action)
-    {
-        if (_document is null)
-            throw new InvalidOperationException("No image loaded.");
-
-        EndPreview();
-        Push(_undo, _document.Clone());
-        Clear(_redo);
-        _document.ActiveLayer.Pixels.Mutate(action);
-        IsDirty = true;
-        RebuildComposite();
-        RefreshPreview();
-        Changed?.Invoke(this, EventArgs.Empty);
+        CommitDisplay(SessionChangeKind.Full);
     }
 
     /// <summary>
@@ -255,31 +170,24 @@ public sealed class ImageSession : IDisposable
         var undoSnapshot = _document.Clone();
         var work = _document.Clone();
 
-        try
-        {
-            await Task.Run(
-                    () =>
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        work.ActiveLayer.Pixels.Mutate(action);
-                    },
-                    cancellationToken
-                )
-                .ConfigureAwait(true);
-        }
-        catch
-        {
-            throw;
-        }
+        var composite = await Task.Run(
+                () =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    work.ActiveLayer.Pixels.Mutate(action);
+                    return work.Composite();
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(true);
 
         cancellationToken.ThrowIfCancellationRequested();
-        Push(_undo, undoSnapshot);
-        Clear(_redo);
+        _history.PushUndo(undoSnapshot);
         _document = work;
+        _composite = composite;
         IsDirty = true;
-        RebuildComposite();
         RefreshPreview();
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged(SessionChangeKind.Full);
     }
 
     /// <summary>
@@ -294,28 +202,46 @@ public sealed class ImageSession : IDisposable
         if (_document is null)
             throw new InvalidOperationException("No image loaded.");
 
+        // Coalesce: only one preview mutation in flight; newer requests supersede via generation.
         var generation = Interlocked.Increment(ref _previewGeneration);
-        var work = _document.Clone();
+        while (Interlocked.CompareExchange(ref _previewInFlight, 1, 0) != 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await Task.Yield();
+            if (generation != _previewGeneration)
+                return;
+        }
 
-        await Task.Run(
-                () =>
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    work.ActiveLayer.Pixels.Mutate(action);
-                },
-                cancellationToken
-            )
-            .ConfigureAwait(true);
+        try
+        {
+            if (generation != _previewGeneration)
+                return;
 
-        cancellationToken.ThrowIfCancellationRequested();
-        if (generation != _previewGeneration)
-            return;
+            var work = _document.Clone();
+            var composite = await Task.Run(
+                    () =>
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        work.ActiveLayer.Pixels.Mutate(action);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        return work.Composite();
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(true);
 
-        var composite = work.Composite();
-        _preview?.Dispose();
-        _preview = AvaloniaImageBridge.ToBitmap(composite);
-        IsPreviewing = true;
-        Changed?.Invoke(this, EventArgs.Empty);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (generation != _previewGeneration)
+                return;
+
+            _preview = AvaloniaImageBridge.UpdateOrCreate(_preview, composite);
+            IsPreviewing = true;
+            RaiseChanged(SessionChangeKind.PreviewOnly);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _previewInFlight, 0);
+        }
     }
 
     /// <summary>
@@ -329,42 +255,38 @@ public sealed class ImageSession : IDisposable
             return;
 
         RefreshPreview();
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged(SessionChangeKind.PreviewOnly);
     }
 
-    /// <summary>
-    /// Restores the previous document snapshot.
-    /// </summary>
     public bool Undo()
     {
-        if (_document is null || _undo.Count == 0)
+        if (_document is null)
             return false;
 
         EndPreview();
-        Push(_redo, _document);
-        _document = Pop(_undo);
+        var previous = _history.TryUndo(_document);
+        if (previous is null)
+            return false;
+
+        _document = previous;
         IsDirty = true;
-        RebuildComposite();
-        RefreshPreview();
-        Changed?.Invoke(this, EventArgs.Empty);
+        CommitDisplay(SessionChangeKind.Full);
         return true;
     }
 
-    /// <summary>
-    /// Re-applies a document snapshot undone earlier.
-    /// </summary>
     public bool Redo()
     {
-        if (_document is null || _redo.Count == 0)
+        if (_document is null)
             return false;
 
         EndPreview();
-        Push(_undo, _document);
-        _document = Pop(_redo);
+        var next = _history.TryRedo(_document);
+        if (next is null)
+            return false;
+
+        _document = next;
         IsDirty = true;
-        RebuildComposite();
-        RefreshPreview();
-        Changed?.Invoke(this, EventArgs.Empty);
+        CommitDisplay(SessionChangeKind.Full);
         return true;
     }
 
@@ -378,13 +300,10 @@ public sealed class ImageSession : IDisposable
 
         ArgumentNullException.ThrowIfNull(edit);
         EndPreview();
-        Push(_undo, _document.Clone());
-        Clear(_redo);
+        _history.PushUndo(_document.Clone());
         edit(_document);
         IsDirty = true;
-        RebuildComposite();
-        RefreshPreview();
-        Changed?.Invoke(this, EventArgs.Empty);
+        CommitDisplay(SessionChangeKind.Full);
     }
 
     /// <summary>
@@ -399,34 +318,30 @@ public sealed class ImageSession : IDisposable
             throw new InvalidOperationException("No image loaded.");
 
         ArgumentNullException.ThrowIfNull(macro);
-        var missing = MacroRunner.MissingIds(macro);
-        if (missing.Count > 0)
-            throw new InvalidOperationException(
-                "Unknown filter id(s): " + string.Join(", ", missing)
-            );
+        MacroRunner.ValidateOrThrow(macro);
 
         EndPreview();
         var undoSnapshot = _document.Clone();
         var work = _document.Clone();
 
-        await Task.Run(
+        var composite = await Task.Run(
                 () =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     MacroRunner.Apply(work.ActiveLayer.Pixels, macro, cancellationToken);
+                    return work.Composite();
                 },
                 cancellationToken
             )
             .ConfigureAwait(true);
 
         cancellationToken.ThrowIfCancellationRequested();
-        Push(_undo, undoSnapshot);
-        Clear(_redo);
+        _history.PushUndo(undoSnapshot);
         _document = work;
+        _composite = composite;
         IsDirty = true;
-        RebuildComposite();
         RefreshPreview();
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged(SessionChangeKind.Full);
     }
 
     /// <summary>
@@ -442,18 +357,14 @@ public sealed class ImageSession : IDisposable
             return;
 
         EndPreview();
-        Push(_undo, _document.Clone());
-        Clear(_redo);
+        _history.PushUndo(_document.Clone());
         _document.SetCanvasSize(width, height);
         IsDirty = true;
-        RebuildComposite();
-        RefreshPreview();
-        Changed?.Invoke(this, EventArgs.Empty);
+        CommitDisplay(SessionChangeKind.Full);
     }
 
     /// <summary>
     /// Crops the active layer to a document-space rectangle (one undo step).
-    /// Returns the cropped pixel size, or null if the rect misses the layer.
     /// </summary>
     public (int Width, int Height)? CropActiveLayer(int docX, int docY, int width, int height)
     {
@@ -500,28 +411,37 @@ public sealed class ImageSession : IDisposable
 
         EndPreview();
         _document.ActiveIndex = index;
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged(SessionChangeKind.Selection);
     }
 
     /// <summary>
-    /// Temporarily shows the document-open original composite (hold-to-compare).
+    /// Moves the active layer selection by one step (wraps).
     /// </summary>
+    public void SelectAdjacentLayer(int delta)
+    {
+        if (_document is null || _document.Layers.Count == 0)
+            return;
+
+        EndPreview();
+        if (delta < 0)
+            _document.SelectPrevious();
+        else
+            _document.SelectNext();
+        RaiseChanged(SessionChangeKind.Selection);
+    }
+
     public void BeginCompare()
     {
         if (_original is null || _comparing)
             return;
 
         EndPreview();
-        var composite = _original.Composite();
-        _preview?.Dispose();
-        _preview = AvaloniaImageBridge.ToBitmap(composite);
+        var composite = GetOriginalComposite();
+        _preview = AvaloniaImageBridge.UpdateOrCreate(_preview, composite);
         _comparing = true;
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged(SessionChangeKind.PreviewOnly);
     }
 
-    /// <summary>
-    /// Restores the committed display after <see cref="BeginCompare"/>.
-    /// </summary>
     public void EndCompare()
     {
         if (!_comparing)
@@ -529,13 +449,8 @@ public sealed class ImageSession : IDisposable
 
         _comparing = false;
         RefreshPreview();
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged(SessionChangeKind.PreviewOnly);
     }
-
-    /// <summary>
-    /// Gets whether hold-to-compare is showing the open-original composite.
-    /// </summary>
-    public bool IsComparing => _comparing;
 
     /// <summary>
     /// Formats PSNR/SSIM of the committed composite vs the document-open original (same size only).
@@ -545,7 +460,7 @@ public sealed class ImageSession : IDisposable
         if (_original is null || _composite is null)
             return null;
 
-        var original = _original.Composite();
+        var original = GetOriginalComposite();
         if (original.Width != _composite.Width || original.Height != _composite.Height)
             return null;
 
@@ -555,9 +470,6 @@ public sealed class ImageSession : IDisposable
         return $"PSNR {psnrText} · SSIM {ssim:0.000}";
     }
 
-    /// <summary>
-    /// Shows animation frame <paramref name="index"/> in the preview (play-only; does not dirty the document).
-    /// </summary>
     public void ShowAnimationFrame(int index)
     {
         if (_animation is null || _animation.Count == 0)
@@ -566,15 +478,11 @@ public sealed class ImageSession : IDisposable
         index = Math.Clamp(index, 0, _animation.Count - 1);
         EndPreview();
         _comparing = false;
-        _preview?.Dispose();
-        _preview = AvaloniaImageBridge.ToBitmap(_animation[index]);
+        _preview = AvaloniaImageBridge.UpdateOrCreate(_preview, _animation[index]);
         _showingAnimationFrame = true;
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged(SessionChangeKind.PreviewOnly);
     }
 
-    /// <summary>
-    /// Delay for animation frame <paramref name="index"/> in milliseconds (GIF delays are centiseconds).
-    /// </summary>
     public int GetAnimationFrameDelayMs(int index)
     {
         if (_animation is null || _animation.Count == 0)
@@ -585,27 +493,23 @@ public sealed class ImageSession : IDisposable
         return centiseconds <= 0 ? 100 : Math.Max(20, centiseconds * 10);
     }
 
-    /// <summary>
-    /// Gets how many times the animation should play (0 = loop forever).
-    /// </summary>
-    public ushort AnimationRepeatCount => _animation?.RepeatCount ?? 0;
-
-    /// <summary>
-    /// Restores the document composite preview after animation playback.
-    /// </summary>
     public void RestoreDocumentPreview()
     {
         if (!_showingAnimationFrame)
             return;
         _showingAnimationFrame = false;
         RefreshPreview();
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged(SessionChangeKind.PreviewOnly);
     }
 
     /// <summary>
-    /// Builds a small preview bitmap of <paramref name="entry"/> on a downscaled active-layer clone (E3).
+    /// Builds a small preview bitmap of <paramref name="entry"/> on a downscaled active-layer clone.
     /// </summary>
-    public WriteableBitmap? CreateFilterVariantThumb(FilterEntry entry, FilterValues values, int maxEdge = 64)
+    public WriteableBitmap? CreateFilterVariantThumb(
+        FilterEntry entry,
+        FilterValues values,
+        int maxEdge = 64
+    )
     {
         if (_document?.ActiveLayer is null)
             return null;
@@ -614,80 +518,24 @@ public sealed class ImageSession : IDisposable
         if (source.Width <= 0 || source.Height <= 0)
             return null;
 
-        var scale = Math.Min(1.0, maxEdge / (double)Math.Max(source.Width, source.Height));
-        var w = Math.Max(1, (int)Math.Round(source.Width * scale));
-        var h = Math.Max(1, (int)Math.Round(source.Height * scale));
-        var thumb = source.Clone();
-        thumb.Mutate(ctx =>
-        {
-            if (w != source.Width || h != source.Height)
-                ctx.Resize(w, h);
-            entry.Apply(ctx, values);
-        });
+        var thumb = AvaloniaImageBridge.CreateThumbnail(source, maxEdge);
+        thumb.Mutate(ctx => entry.Apply(ctx, values));
         return AvaloniaImageBridge.ToBitmap(thumb);
     }
 
-    /// <inheritdoc />
     public void Dispose()
     {
         EndPreview();
         _preview?.Dispose();
         _preview = null;
-        Clear(_undo);
-        Clear(_redo);
+        _history.Clear();
         _composite = null;
+        _originalComposite = null;
         _document = null;
         _original = null;
         _animation = null;
         _showingAnimationFrame = false;
         IsDirty = false;
-    }
-
-    private static (LayerDocument Doc, Animation? Anim) LoadDocumentAndAnimation(string path)
-    {
-        if (OraCodec.IsOraPath(path))
-            return (OraCodec.Read(path), null);
-
-        var image = Image.Load(path);
-        var doc = LayerDocument.FromImage(image);
-        Animation? anim = null;
-        if (IsGifPath(path))
-        {
-            try
-            {
-                anim = Animation.Load(path);
-            }
-            catch
-            {
-                // Still document remains usable if animation decode fails.
-            }
-        }
-
-        return (doc, anim);
-    }
-
-    private static bool IsGifPath(string path) =>
-        path.EndsWith(".gif", StringComparison.OrdinalIgnoreCase);
-
-    private static void WritePath(
-        LayerDocument document,
-        Image composite,
-        string path,
-        IImageEncoder? encoder
-    )
-    {
-        if (OraCodec.IsOraPath(path))
-            OraCodec.Write(path, document);
-        else
-            WriteFile(composite, path, encoder);
-    }
-
-    private static void WriteFile(Image image, string path, IImageEncoder? encoder)
-    {
-        if (encoder is null)
-            image.Save(path);
-        else
-            image.Save(path, encoder);
     }
 
     private void Replace(
@@ -700,24 +548,35 @@ public sealed class ImageSession : IDisposable
     {
         EndPreview();
         _preview?.Dispose();
+        _preview = null;
         if (clearHistory)
-        {
-            Clear(_undo);
-            Clear(_redo);
-        }
+            _history.Clear();
 
         _original = document.Clone();
+        _originalComposite = null;
         _document = document;
         Path = path;
         IsDirty = dirty;
         _animation = animation is { Count: > 1 } ? animation : null;
         _showingAnimationFrame = false;
+        CommitDisplay(SessionChangeKind.Full);
+    }
+
+    private void CommitDisplay(SessionChangeKind kind)
+    {
         RebuildComposite();
         RefreshPreview();
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged(kind);
     }
 
     private void RebuildComposite() => _composite = _document?.Composite();
+
+    private Image GetOriginalComposite()
+    {
+        if (_original is null)
+            throw new InvalidOperationException("No original document.");
+        return _originalComposite ??= _original.Composite();
+    }
 
     private void EndPreview()
     {
@@ -729,24 +588,18 @@ public sealed class ImageSession : IDisposable
 
     private void RefreshPreview()
     {
-        _preview?.Dispose();
-        _preview = _composite is null ? null : AvaloniaImageBridge.ToBitmap(_composite);
+        if (_composite is null)
+        {
+            _preview?.Dispose();
+            _preview = null;
+        }
+        else
+        {
+            _preview = AvaloniaImageBridge.UpdateOrCreate(_preview, _composite);
+        }
+
         _showingAnimationFrame = false;
     }
 
-    private static void Push(List<LayerDocument> history, LayerDocument snapshot)
-    {
-        history.Add(snapshot);
-        while (history.Count > MaxHistory)
-            history.RemoveAt(0);
-    }
-
-    private static LayerDocument Pop(List<LayerDocument> history)
-    {
-        var last = history[^1];
-        history.RemoveAt(history.Count - 1);
-        return last;
-    }
-
-    private static void Clear(List<LayerDocument> history) => history.Clear();
+    private void RaiseChanged(SessionChangeKind kind) => Changed?.Invoke(this, kind);
 }

@@ -51,10 +51,9 @@ public partial class MainWindow
 
         if (_canvasTool == CanvasTool.Crop && point.Properties.IsLeftButtonPressed)
         {
-            _cropDragging = true;
-            _cropStart = e.GetPosition(PreviewImage);
-            _cropRectImage = null;
-            UpdateCropOverlay(new Rect(_cropStart, new Size(0, 0)));
+            var start = e.GetPosition(PreviewImage);
+            _crop.Begin(start);
+            UpdateCropOverlay(new Rect(start, new Size(0, 0)));
             e.Pointer.Capture(PreviewFrame);
             e.Handled = true;
             return;
@@ -85,9 +84,13 @@ public partial class MainWindow
 
     private void OnPreviewPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (_cropDragging)
+        if (_crop.IsDragging)
         {
-            UpdateCropOverlay(NormalizeRect(_cropStart, e.GetPosition(PreviewImage)));
+            var rect = _crop.Update(e.GetPosition(PreviewImage));
+            UpdateCropOverlay(rect);
+            var w = Math.Max(0, (int)Math.Round(rect.Width));
+            var h = Math.Max(0, (int)Math.Round(rect.Height));
+            StatusText.Text = $"Crop {w}×{h}";
             e.Handled = true;
             return;
         }
@@ -101,11 +104,12 @@ public partial class MainWindow
 
     private void OnPreviewPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (_cropDragging)
+        if (_crop.IsDragging)
         {
-            _cropDragging = false;
+            var imageLocal = _crop.Update(e.GetPosition(PreviewImage));
+            _crop.EndDrag();
             e.Pointer.Capture(null);
-            CommitCropRect(NormalizeRect(_cropStart, e.GetPosition(PreviewImage)));
+            CommitCropRect(imageLocal);
             e.Handled = true;
             return;
         }
@@ -133,20 +137,58 @@ public partial class MainWindow
         UpdateZoomLabel();
     }
 
-    private static Rect NormalizeRect(Point a, Point b)
-    {
-        var x = Math.Min(a.X, b.X);
-        var y = Math.Min(a.Y, b.Y);
-        return new Rect(x, y, Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
-    }
-
     private void UpdateCropOverlay(Rect imageRect)
     {
-        CropRect.IsVisible = imageRect.Width > 0 && imageRect.Height > 0;
+        var has = imageRect.Width > 0 && imageRect.Height > 0;
+        CropRect.IsVisible = has;
         Canvas.SetLeft(CropRect, imageRect.X);
         Canvas.SetTop(CropRect, imageRect.Y);
         CropRect.Width = imageRect.Width;
         CropRect.Height = imageRect.Height;
+        UpdateCropShade(imageRect, has);
+    }
+
+    private void UpdateCropShade(Rect keep, bool hasKeep)
+    {
+        var size = PreviewPixelSize();
+        if (!hasKeep || size is null)
+        {
+            CropShadeTop.IsVisible = false;
+            CropShadeBottom.IsVisible = false;
+            CropShadeLeft.IsVisible = false;
+            CropShadeRight.IsVisible = false;
+            return;
+        }
+
+        var fullW = size.Value.Width;
+        var fullH = size.Value.Height;
+        var x = Math.Clamp(keep.X, 0, fullW);
+        var y = Math.Clamp(keep.Y, 0, fullH);
+        var r = Math.Clamp(keep.Right, 0, fullW);
+        var b = Math.Clamp(keep.Bottom, 0, fullH);
+
+        SetShade(CropShadeTop, 0, 0, fullW, y);
+        SetShade(CropShadeBottom, 0, b, fullW, fullH - b);
+        SetShade(CropShadeLeft, 0, y, x, b - y);
+        SetShade(CropShadeRight, r, y, fullW - r, b - y);
+    }
+
+    private static void SetShade(
+        Avalonia.Controls.Shapes.Rectangle rect,
+        double x,
+        double y,
+        double w,
+        double h
+    )
+    {
+        var visible = w > 0.5 && h > 0.5;
+        rect.IsVisible = visible;
+        if (!visible)
+            return;
+        Canvas.SetLeft(rect, x);
+        Canvas.SetTop(rect, y);
+        rect.Width = w;
+        rect.Height = h;
     }
 
     private void CommitCropRect(Rect imageLocal)
@@ -156,38 +198,54 @@ public partial class MainWindow
 
         var bmpW = _session.Preview.PixelSize.Width;
         var bmpH = _session.Preview.PixelSize.Height;
-        var x = (int)Math.Floor(Math.Clamp(imageLocal.X, 0, bmpW));
-        var y = (int)Math.Floor(Math.Clamp(imageLocal.Y, 0, bmpH));
-        var w = (int)Math.Ceiling(Math.Clamp(imageLocal.Right, 0, bmpW)) - x;
-        var h = (int)Math.Ceiling(Math.Clamp(imageLocal.Bottom, 0, bmpH)) - y;
-        if (w < 1 || h < 1)
+        _crop.Commit(imageLocal, bmpW, bmpH);
+        if (!_crop.HasRect)
         {
             ClearCropSelection();
             return;
         }
 
-        _cropRectImage = new Rect(x, y, w, h);
-        UpdateCropOverlay(_cropRectImage.Value);
+        UpdateCropOverlay(_crop.Rect!.Value);
         ApplyCropButton.IsEnabled = true;
         CancelCropButton.IsEnabled = true;
+        var w = (int)_crop.Rect.Value.Width;
+        var h = (int)_crop.Rect.Value.Height;
         StatusText.Text = $"Crop {w}×{h} — Apply Crop or Enter";
     }
 
     private void ClearCropSelection()
     {
-        _cropRectImage = null;
-        _cropDragging = false;
+        _crop.Clear();
         CropRect.IsVisible = false;
+        UpdateCropShade(default, false);
         ApplyCropButton.IsEnabled = false;
         CancelCropButton.IsEnabled = _canvasTool == CanvasTool.Crop;
     }
 
+    private void CancelCropOrExit()
+    {
+        if (_crop.HasRect || _crop.IsDragging)
+        {
+            ClearCropSelection();
+            if (_canvasTool == CanvasTool.Crop)
+                StatusText.Text = "Crop — drag a rectangle on the active layer";
+            return;
+        }
+
+        if (_canvasTool == CanvasTool.Crop)
+        {
+            SetCanvasTool(CanvasTool.Hand);
+            if (!_busy && _session.HasImage)
+                StatusText.Text = "Ready";
+        }
+    }
+
     private void ApplyCrop()
     {
-        if (_busy || !_session.HasImage || _cropRectImage is null)
+        if (_busy || !_session.HasImage || !_crop.HasRect)
             return;
 
-        var rect = _cropRectImage.Value;
+        var rect = _crop.Rect!.Value;
         ClearCropSelection();
         SetBusy(true, "Crop…");
         try
@@ -203,7 +261,6 @@ public partial class MainWindow
             StatusText.Text = size is null
                 ? "Crop missed the active layer."
                 : $"Crop · {size.Value.Width}×{size.Value.Height} · {sw.ElapsedMilliseconds} ms";
-            UpdateMeta();
         }
         catch (Exception ex)
         {

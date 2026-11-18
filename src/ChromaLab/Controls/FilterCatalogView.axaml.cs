@@ -15,16 +15,19 @@
  */
 
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
 using ChromaLab.Filters;
+using ChromaLab.Services;
 
 namespace ChromaLab.Controls;
 
 public partial class FilterCatalogView : UserControl
 {
-    private readonly List<Control> _entryControls = [];
+    private readonly List<(Button Button, string Id)> _entryControls = [];
     private bool _enabled = true;
     private string _query = "";
+    private string? _selectedId;
 
     public FilterCatalogView()
     {
@@ -32,7 +35,18 @@ public partial class FilterCatalogView : UserControl
         SearchBox.TextChanged += (_, _) =>
         {
             _query = SearchBox.Text?.Trim() ?? "";
+            ClearSearchButton.IsVisible = !string.IsNullOrEmpty(_query);
             Rebuild();
+        };
+        ClearSearchButton.Click += (_, _) => ClearSearch();
+        SearchBox.KeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Escape)
+                return;
+            if (string.IsNullOrEmpty(SearchBox.Text))
+                return;
+            ClearSearch();
+            e.Handled = true;
         };
         Rebuild();
     }
@@ -48,8 +62,38 @@ public partial class FilterCatalogView : UserControl
     public void SetEntriesEnabled(bool enabled)
     {
         _enabled = enabled;
-        foreach (var control in _entryControls)
+        foreach (var (control, _) in _entryControls)
             control.IsEnabled = enabled;
+    }
+
+    /// <summary>
+    /// Marks the currently inspected parametric filter (or clears selection).
+    /// </summary>
+    public void SetSelectedEntry(string? id)
+    {
+        _selectedId = id;
+        foreach (var (button, entryId) in _entryControls)
+            UiHelpers.SetSelectedClass(button, entryId == _selectedId);
+    }
+
+    /// <summary>
+    /// Focuses the search box (e.g. Ctrl/Cmd+F).
+    /// </summary>
+    public void FocusSearch()
+    {
+        SearchBox.Focus();
+        SearchBox.SelectAll();
+    }
+
+    /// <summary>
+    /// Clears the search query and rebuilds the catalog list.
+    /// </summary>
+    public void ClearSearch()
+    {
+        SearchBox.Text = "";
+        _query = "";
+        ClearSearchButton.IsVisible = false;
+        Rebuild();
     }
 
     private void Rebuild()
@@ -58,6 +102,7 @@ public partial class FilterCatalogView : UserControl
         _entryControls.Clear();
 
         var query = _query;
+        var any = false;
         foreach (var group in FilterCatalog.GroupsByOrder())
         {
             var entries = string.IsNullOrEmpty(query)
@@ -72,6 +117,7 @@ public partial class FilterCatalogView : UserControl
             if (entries.Count == 0)
                 continue;
 
+            any = true;
             var block = new StackPanel { Spacing = 2 };
             block.Children.Add(
                 new TextBlock
@@ -87,9 +133,10 @@ public partial class FilterCatalogView : UserControl
 
             foreach (var entry in entries)
             {
+                var label = entry.HasParams ? entry.DisplayName + "…" : entry.DisplayName;
                 var button = new Button
                 {
-                    Content = entry.DisplayName,
+                    Content = label,
                     HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
                     HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Left,
                     Padding = new Avalonia.Thickness(8, 6),
@@ -99,13 +146,28 @@ public partial class FilterCatalogView : UserControl
                         ? $"{entry.DisplayName} — adjust in inspector"
                         : entry.DisplayName,
                 };
+                UiHelpers.SetSelectedClass(button, entry.Id == _selectedId);
                 var captured = entry;
                 button.Click += (_, _) => FilterChosen?.Invoke(this, captured);
                 block.Children.Add(button);
-                _entryControls.Add(button);
+                _entryControls.Add((button, entry.Id));
             }
 
             GroupsHost.Children.Add(block);
+        }
+
+        if (!any && !string.IsNullOrEmpty(query))
+        {
+            GroupsHost.Children.Add(
+                new TextBlock
+                {
+                    Text = "No matching filters",
+                    FontSize = 12,
+                    Opacity = 0.55,
+                    Margin = new Avalonia.Thickness(8, 12, 8, 0),
+                    TextWrapping = TextWrapping.Wrap,
+                }
+            );
         }
     }
 }

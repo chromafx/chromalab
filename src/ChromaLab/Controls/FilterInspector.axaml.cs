@@ -18,23 +18,26 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using ChromaLab.Filters;
 
 namespace ChromaLab.Controls;
 
 public partial class FilterInspector : UserControl
 {
+    private const int VariantThumbSize = 48;
+
     private FilterEntry? _entry;
     private FilterValues? _values;
     private bool _canApply;
     private bool _suppressValuesChanged;
     private readonly List<WriteableBitmap> _variantBitmaps = [];
-    private StackPanel? _variantsSection;
+    private CancellationTokenSource? _variantsCts;
+    private int _variantsGeneration;
 
     public FilterInspector()
     {
         InitializeComponent();
-        _variantsSection = this.FindControl<StackPanel>("VariantsSection");
         ApplyButton.Click += (_, _) =>
         {
             if (_entry is null || _values is null)
@@ -48,11 +51,16 @@ public partial class FilterInspector : UserControl
         };
         ResetParamsButton.Click += (_, _) => ResetToDefaults();
         RandomizeButton.Click += (_, _) => RandomizeParams();
-        RefreshVariantsButton.Click += (_, _) => RebuildVariants();
+        RefreshVariantsButton.Click += (_, _) => RebuildVariants(force: true);
+        DetachedFromVisualTree += (_, _) =>
+        {
+            CancelVariantWork();
+            ClearVariants();
+        };
     }
 
     /// <summary>
-    /// Optional factory for E3 variant thumbnails (active-layer downscale + filter).
+    /// Optional factory for variant thumbnails (active-layer downscale + filter).
     /// </summary>
     public Func<FilterEntry, FilterValues, WriteableBitmap?>? VariantPreviewFactory { get; set; }
 
@@ -77,6 +85,16 @@ public partial class FilterInspector : UserControl
     public FilterEntry? SelectedEntry => _entry;
 
     /// <summary>
+    /// Gets a clone of the current parameter bag when a filter is selected.
+    /// </summary>
+    public FilterValues? CurrentValues => _values?.Clone();
+
+    /// <summary>
+    /// Re-raises <see cref="ValuesChanged"/> so the host can restore a live preview.
+    /// </summary>
+    public void NotifyValuesChanged() => RaiseValuesChanged();
+
+    /// <summary>
     /// Loads a parametric filter into the inspector (resets values to defaults).
     /// </summary>
     public void Select(FilterEntry entry)
@@ -91,7 +109,7 @@ public partial class FilterInspector : UserControl
         ParamsHost.IsVisible = true;
         CenterHintText.IsVisible = FilterExplorer.HasNormalizedCenter(entry);
         RebuildEditors();
-        RebuildVariants();
+        RebuildVariants(force: true);
         UpdateButtons();
         RaiseValuesChanged();
     }
@@ -101,6 +119,7 @@ public partial class FilterInspector : UserControl
     /// </summary>
     public void Clear()
     {
+        CancelVariantWork();
         _entry = null;
         _values = null;
         ParamsHost.Children.Clear();
@@ -119,15 +138,13 @@ public partial class FilterInspector : UserControl
     /// </summary>
     public void SetCanApply(bool canApply)
     {
-        var was = _canApply;
         _canApply = canApply;
         UpdateButtons();
-        if (canApply && !was && _entry is not null)
-            RebuildVariants();
+        // Do not rebuild variants on busy→idle; only on Select / Refresh / layer change.
     }
 
     /// <summary>
-    /// Sets normalized center (0–1) when the filter exposes <c>cx</c>/<c>cy</c> (E2).
+    /// Sets normalized center (0–1) when the filter exposes <c>cx</c>/<c>cy</c>.
     /// </summary>
     public bool TrySetNormalizedCenter(float x, float y)
     {
@@ -135,7 +152,7 @@ public partial class FilterInspector : UserControl
             return false;
         if (!FilterExplorer.TrySetCenter(_entry, _values, x, y))
             return false;
-        RebuildEditors();
+        UpdateEditorValues();
         RaiseValuesChanged();
         return true;
     }
@@ -145,7 +162,7 @@ public partial class FilterInspector : UserControl
         if (_entry is null)
             return;
         _values = _entry.CreateDefaultValues();
-        RebuildEditors();
+        UpdateEditorValues();
         RaiseValuesChanged();
     }
 
@@ -159,8 +176,7 @@ public partial class FilterInspector : UserControl
         RandomizeButton.IsEnabled = has && _canApply;
         RefreshVariantsButton.IsVisible = has;
         RefreshVariantsButton.IsEnabled = has && _canApply;
-        if (_variantsSection is not null)
-            _variantsSection.IsVisible = has;
+        VariantsPanel.IsVisible = has;
     }
 
     private void RandomizeParams()
@@ -169,30 +185,57 @@ public partial class FilterInspector : UserControl
             return;
 
         FilterExplorer.Randomize(_entry, _values);
-        RebuildEditors();
+        UpdateEditorValues();
         RaiseValuesChanged();
     }
 
-    private void RebuildVariants()
+    private void RebuildVariants(bool force = false)
     {
-        ClearVariants();
-        if (_entry is null || !_canApply)
+        if (_entry is null)
         {
-            if (_variantsSection is not null)
-                _variantsSection.IsVisible = _entry is not null;
+            ClearVariants();
+            VariantsPanel.IsVisible = false;
             return;
         }
 
-        if (_variantsSection is not null)
-            _variantsSection.IsVisible = true;
-        var variants = FilterExplorer.CreateVariants(_entry);
+        VariantsPanel.IsVisible = true;
+        if (!_canApply && !force)
+            return;
+
+        CancelVariantWork();
+        _variantsCts = new CancellationTokenSource();
+        var ct = _variantsCts.Token;
+        var generation = ++_variantsGeneration;
+        var entry = _entry;
+        var factory = VariantPreviewFactory;
+        _ = BuildVariantsAsync(entry, factory, generation, ct);
+    }
+
+    private async Task BuildVariantsAsync(
+        FilterEntry entry,
+        Func<FilterEntry, FilterValues, WriteableBitmap?>? factory,
+        int generation,
+        CancellationToken cancellationToken
+    )
+    {
+        ClearVariants(keepPanelVisible: true);
+        var variants = FilterExplorer.CreateVariants(entry);
+
+        // Yield so Select/layout stays responsive, then build thumbs with cancellation.
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        if (cancellationToken.IsCancellationRequested || generation != _variantsGeneration)
+            return;
+
         for (var i = 0; i < variants.Length; i++)
         {
+            if (cancellationToken.IsCancellationRequested || generation != _variantsGeneration)
+                return;
+
             var values = variants[i];
             WriteableBitmap? thumb = null;
             try
             {
-                thumb = VariantPreviewFactory?.Invoke(_entry, values);
+                thumb = factory?.Invoke(entry, values);
             }
             catch
             {
@@ -204,8 +247,8 @@ public partial class FilterInspector : UserControl
 
             var button = new Button
             {
-                Width = 56,
-                Height = 56,
+                Width = VariantThumbSize,
+                Height = VariantThumbSize,
                 Padding = new Avalonia.Thickness(2),
                 [ToolTip.TipProperty] = $"Variant {i + 1}",
                 Content = thumb is null
@@ -219,13 +262,16 @@ public partial class FilterInspector : UserControl
                     {
                         Source = thumb,
                         Stretch = Stretch.UniformToFill,
-                        Width = 52,
-                        Height = 52,
+                        Width = VariantThumbSize - 4,
+                        Height = VariantThumbSize - 4,
                     },
             };
             var captured = values;
             button.Click += (_, _) => ApplyVariant(captured);
             VariantsHost.Children.Add(button);
+
+            if (i < variants.Length - 1)
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
         }
     }
 
@@ -234,18 +280,27 @@ public partial class FilterInspector : UserControl
         if (_entry is null)
             return;
         _values = values.Clone();
-        RebuildEditors();
+        UpdateEditorValues();
         RaiseValuesChanged();
     }
 
-    private void ClearVariants()
+    private void CancelVariantWork()
+    {
+        if (_variantsCts is null)
+            return;
+        _variantsCts.Cancel();
+        _variantsCts.Dispose();
+        _variantsCts = null;
+    }
+
+    private void ClearVariants(bool keepPanelVisible = false)
     {
         VariantsHost.Children.Clear();
         foreach (var bmp in _variantBitmaps)
             bmp.Dispose();
         _variantBitmaps.Clear();
-        if (_variantsSection is not null)
-            _variantsSection.IsVisible = false;
+        if (!keepPanelVisible)
+            VariantsPanel.IsVisible = false;
     }
 
     private void RaiseValuesChanged()
@@ -268,16 +323,6 @@ public partial class FilterInspector : UserControl
         {
             foreach (var param in _entry.Params)
             {
-                var block = new StackPanel { Spacing = 4 };
-                block.Children.Add(
-                    new TextBlock
-                    {
-                        Text = param.Label,
-                        FontSize = 12,
-                        Opacity = 0.85,
-                    }
-                );
-
                 Control editor = param.Kind switch
                 {
                     FilterParamKind.Float => BuildSlider(param, integer: false),
@@ -286,9 +331,89 @@ public partial class FilterInspector : UserControl
                     FilterParamKind.Choice => BuildCombo(param),
                     _ => new TextBlock { Text = "(unsupported)" },
                 };
+                ParamsHost.Children.Add(editor);
+            }
+        }
+        finally
+        {
+            _suppressValuesChanged = false;
+        }
+    }
 
-                block.Children.Add(editor);
-                ParamsHost.Children.Add(block);
+    /// <summary>
+    /// Updates existing editor control values in place (preserves focus / scroll).
+    /// </summary>
+    private void UpdateEditorValues()
+    {
+        if (_entry is null || _values is null)
+        {
+            RebuildEditors();
+            return;
+        }
+
+        if (ParamsHost.Children.Count != _entry.Params.Count)
+        {
+            RebuildEditors();
+            return;
+        }
+
+        _suppressValuesChanged = true;
+        try
+        {
+            for (var i = 0; i < _entry.Params.Count; i++)
+            {
+                var param = _entry.Params[i];
+                var control = ParamsHost.Children[i];
+                switch (param.Kind)
+                {
+                    case FilterParamKind.Float:
+                    case FilterParamKind.Int:
+                    {
+                        if (control is not DockPanel sliderHost
+                            || sliderHost.Children.OfType<Slider>().FirstOrDefault() is not { } slider)
+                        {
+                            RebuildEditors();
+                            return;
+                        }
+
+                        var header = sliderHost.Children.OfType<DockPanel>().FirstOrDefault();
+                        var valueLabel = header?.Children.OfType<TextBlock>().FirstOrDefault();
+                        var integer = param.Kind == FilterParamKind.Int;
+                        var current = integer
+                            ? _values.GetInt(param.Id)
+                            : _values.GetFloat(param.Id);
+                        slider.Value = current;
+                        if (valueLabel is not null)
+                            valueLabel.Text = FormatValue(current, integer, param.Step);
+                        break;
+                    }
+                    case FilterParamKind.Bool:
+                        if (control is CheckBox box)
+                            box.IsChecked = _values.GetBool(param.Id);
+                        else
+                        {
+                            RebuildEditors();
+                            return;
+                        }
+                        break;
+                    case FilterParamKind.Choice:
+                    {
+                        var combo = control as ComboBox
+                            ?? (control as Panel)?.Children.OfType<ComboBox>().FirstOrDefault();
+                        if (combo is null)
+                        {
+                            RebuildEditors();
+                            return;
+                        }
+
+                        var choices = param.Choices ?? [];
+                        var currentId = _values.GetChoice(param.Id);
+                        combo.SelectedItem =
+                            choices.FirstOrDefault(c => c.Id == currentId)
+                            ?? choices.FirstOrDefault();
+                        break;
+                    }
+                }
             }
         }
         finally
@@ -299,10 +424,18 @@ public partial class FilterInspector : UserControl
 
     private Control BuildSlider(FilterParam param, bool integer)
     {
+        var label = new TextBlock
+        {
+            Text = param.Label,
+            FontSize = 12,
+            Opacity = 0.85,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
         var valueLabel = new TextBlock
         {
             FontSize = 11,
             Opacity = 0.7,
+            VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Right,
         };
 
@@ -339,9 +472,14 @@ public partial class FilterInspector : UserControl
             OnValueEdited();
         };
 
-        var row = new DockPanel();
-        DockPanel.SetDock(valueLabel, Dock.Top);
-        row.Children.Add(valueLabel);
+        var header = new DockPanel { Margin = new Avalonia.Thickness(0, 0, 0, 2) };
+        DockPanel.SetDock(valueLabel, Dock.Right);
+        header.Children.Add(valueLabel);
+        header.Children.Add(label);
+
+        var row = new DockPanel { Tag = param.Id };
+        DockPanel.SetDock(header, Dock.Top);
+        row.Children.Add(header);
         row.Children.Add(slider);
         return row;
     }
@@ -350,7 +488,7 @@ public partial class FilterInspector : UserControl
     {
         var box = new CheckBox
         {
-            Content = "Enabled",
+            Content = param.Label,
             IsChecked = _values!.GetBool(param.Id),
             FontSize = 12,
         };
@@ -367,6 +505,16 @@ public partial class FilterInspector : UserControl
     private Control BuildCombo(FilterParam param)
     {
         var choices = param.Choices ?? [];
+        var block = new StackPanel { Spacing = 4 };
+        block.Children.Add(
+            new TextBlock
+            {
+                Text = param.Label,
+                FontSize = 12,
+                Opacity = 0.85,
+            }
+        );
+
         var combo = new ComboBox
         {
             ItemsSource = choices,
@@ -389,7 +537,12 @@ public partial class FilterInspector : UserControl
             OnValueEdited();
         };
 
-        return combo;
+        // For UpdateEditorValues, expose ComboBox as direct child when Kind is Choice —
+        // wrap breaks in-place update; keep combo as the returned control with label above via StackPanel
+        // and teach UpdateEditorValues to find nested ComboBox.
+        block.Children.Add(combo);
+        block.Tag = "choice";
+        return block;
     }
 
     private static string FormatValue(double value, bool integer, double step)

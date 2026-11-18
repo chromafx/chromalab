@@ -36,12 +36,6 @@ public sealed class MacroRecorder
 
     public void Stop() => IsRecording = false;
 
-    public void Clear()
-    {
-        _steps.Clear();
-        IsRecording = false;
-    }
-
     /// <summary>
     /// Appends a step when recording. No-op when idle.
     /// </summary>

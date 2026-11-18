@@ -16,6 +16,7 @@
 
 using Avalonia.Controls;
 using Avalonia.Media;
+using ChromaLab.Controls;
 using ChromaLab.Filters;
 
 namespace ChromaLab;
@@ -45,18 +46,14 @@ public partial class MainWindow
 
         var favorites = FilterCatalog.ToolbarFavorites.ToList();
         FavoriteToolsSep.IsVisible = favorites.Count > 0;
-        var fill =
-            this.FindResource("SystemControlForegroundBaseHighBrush") as IBrush ?? Brushes.White;
 
         foreach (var entry in favorites)
         {
-            var path = new Avalonia.Controls.Shapes.Path
+            var icon = new LabIcon
             {
-                Width = 16,
-                Height = 16,
-                Stretch = Stretch.Uniform,
-                Fill = fill,
-                Data = Geometry.Parse(entry.ToolbarIcon!),
+                Kind = entry.ToolbarIcon,
+                Size = 16,
+                Foreground = ResolveFavoriteBrush(entry.Id),
             };
             var tip = entry.ToolbarTip ?? entry.DisplayName;
             if (entry.HasParams)
@@ -64,7 +61,7 @@ public partial class MainWindow
             var button = new Button
             {
                 Classes = { "tool" },
-                Content = path,
+                Content = icon,
                 IsEnabled = false,
                 [ToolTip.TipProperty] = tip,
             };
@@ -75,14 +72,24 @@ public partial class MainWindow
         }
     }
 
-    private void ApplyCatalogId(string id)
+    private IBrush ResolveFavoriteBrush(string filterId) =>
+        filterId switch
+        {
+            "invert" => this.FindResource("IconAccentGradient") as IBrush
+                ?? Brushes.DodgerBlue,
+            "websafe" => this.FindResource("IconWebsafeGradient") as IBrush
+                ?? Brushes.SteelBlue,
+            _ => this.FindResource("IconMutedBrush") as IBrush ?? Brushes.Silver,
+        };
+
+    private void ApplyCatalogId(string id, bool stayOnTools = false)
     {
         var entry = FilterCatalog.All.FirstOrDefault(e => e.Id == id);
         if (entry is not null)
-            OnFilterChosen(entry);
+            OnFilterChosen(entry, stayOnTools);
     }
 
-    private void OnFilterChosen(FilterEntry entry)
+    private void OnFilterChosen(FilterEntry entry, bool stayOnTools = false)
     {
         if (_busy || !_session.HasImage)
             return;
@@ -94,14 +101,29 @@ public partial class MainWindow
 
         if (entry.HasParams)
         {
-            SetRailMode(LeftRailMode.Filters);
+            if (!stayOnTools)
+                SetRailMode(LeftRailMode.Filters);
             Inspector.Select(entry);
+            FilterBrowser.SetSelectedEntry(entry.Id);
             StatusText.Text = $"{entry.DisplayName} — preview; Apply to commit";
             return;
         }
 
         CancelInspectorPreview();
+        FilterBrowser.SetSelectedEntry(null);
         TryMutate(entry, entry.CreateDefaultValues());
+    }
+
+    private void CancelTransientModes(bool clearInspector = false)
+    {
+        CancelPreviewWork();
+        StopAnimationPlayback(restoreDocument: true);
+        ClearCropSelection();
+        if (clearInspector)
+        {
+            Inspector.Clear();
+            FilterBrowser.SetSelectedEntry(null);
+        }
     }
 
     private void SchedulePreview(FilterEntry entry, FilterValues values)
@@ -175,7 +197,6 @@ public partial class MainWindow
             StatusText.Text = _macroRecorder.IsRecording
                 ? $"Recording · {_macroRecorder.StepCount} · {label} · {sw.ElapsedMilliseconds} ms"
                 : $"{label} · {_session.SizeLabel} · {sw.ElapsedMilliseconds} ms";
-            UpdateMeta();
             RefreshMacroMenuUi(!_busy, _session.HasImage && !_busy);
         }
         catch (Exception ex)

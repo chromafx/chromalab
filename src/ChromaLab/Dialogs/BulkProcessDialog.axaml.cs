@@ -16,6 +16,7 @@
 
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using ChromaLab.Controls;
 using ChromaLab.Macros;
 using ChromaLab.Services;
 
@@ -48,8 +49,20 @@ public partial class BulkProcessDialog : Window
         RebuildOptions();
 
         BrowseMacroButton.Click += async (_, _) => await BrowseMacroAsync();
-        BrowseInputButton.Click += async (_, _) => await BrowseFolderAsync(InputFolderBox);
-        BrowseOutputButton.Click += async (_, _) => await BrowseFolderAsync(OutputFolderBox);
+        BrowseInputButton.Click += async (_, _) =>
+        {
+            await BrowseFolderAsync(InputFolderBox);
+            UpdateInputSummary();
+        };
+        BrowseOutputButton.Click += async (_, _) =>
+        {
+            await BrowseFolderAsync(OutputFolderBox);
+            UpdateInputSummary();
+        };
+        InputFolderBox.TextChanged += (_, _) => UpdateInputSummary();
+        OutputFolderBox.TextChanged += (_, _) => UpdateInputSummary();
+        SuffixBox.TextChanged += (_, _) => UpdateInputSummary();
+        MacroPathBox.TextChanged += (_, _) => UpdateRunEnabled();
         RunButton.Click += async (_, _) => await RunAsync();
         CancelButton.Click += (_, _) => OnCloseOrCancel();
         Closing += (_, e) =>
@@ -60,6 +73,8 @@ public partial class BulkProcessDialog : Window
                 _cts?.Cancel();
             }
         };
+
+        UpdateInputSummary();
     }
 
     public static Task ShowAsync(Window owner)
@@ -68,29 +83,12 @@ public partial class BulkProcessDialog : Window
         return dialog.ShowDialog(owner);
     }
 
-    private void RebuildOptions()
-    {
-        OptionsHost.Children.Clear();
-        if (FormatCombo.SelectedItem is not ExportFormat format)
-            return;
-
-        var panel = format.CreateOptionsPanel(_options);
-        if (panel is null)
-        {
-            OptionsHost.Children.Add(
-                new TextBlock
-                {
-                    Text = "No encoder options for this format.",
-                    FontSize = 12,
-                    Opacity = 0.55,
-                }
-            );
-        }
-        else
-        {
-            OptionsHost.Children.Add(panel);
-        }
-    }
+    private void RebuildOptions() =>
+        ExportOptionsPanel.Rebuild(
+            OptionsHost,
+            FormatCombo.SelectedItem as ExportFormat,
+            _options
+        );
 
     private async Task BrowseMacroAsync()
     {
@@ -99,17 +97,12 @@ public partial class BulkProcessDialog : Window
             {
                 Title = "Open macro",
                 AllowMultiple = false,
-                FileTypeFilter =
-                [
-                    new FilePickerFileType("ChromaFx macro")
-                    {
-                        Patterns = ["*.chromafx-macro.json", "*.json"],
-                    },
-                ],
+                FileTypeFilter = [MacroFileTypes.PickerType],
             }
         );
         if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
             MacroPathBox.Text = path;
+        UpdateRunEnabled();
     }
 
     private async Task BrowseFolderAsync(TextBox target)
@@ -119,6 +112,59 @@ public partial class BulkProcessDialog : Window
         );
         if (folders.Count > 0 && folders[0].TryGetLocalPath() is { } path)
             target.Text = path;
+    }
+
+    private void UpdateInputSummary()
+    {
+        if (_running)
+            return;
+
+        var input = InputFolderBox.Text?.Trim();
+        if (string.IsNullOrWhiteSpace(input) || !Directory.Exists(input))
+        {
+            InputCountText.Text = "";
+            UpdateRunEnabled();
+            return;
+        }
+
+        var count = MacroBulk.EnumerateInputs(input).Count;
+        InputCountText.Text =
+            count == 0
+                ? "No supported still images in this folder."
+                : $"{count} supported image{(count == 1 ? "" : "s")} found";
+
+        var output = OutputFolderBox.Text?.Trim();
+        var suffix = SuffixBox.Text ?? "";
+        if (
+            count > 0
+            && !string.IsNullOrWhiteSpace(output)
+            && string.Equals(input, output, StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(suffix)
+        )
+        {
+            InputCountText.Text +=
+                " · Warning: same input/output folder with empty suffix will overwrite sources.";
+        }
+
+        UpdateRunEnabled();
+    }
+
+    private void UpdateRunEnabled()
+    {
+        if (_running)
+            return;
+
+        var macroPath = MacroPathBox.Text?.Trim();
+        var input = InputFolderBox.Text?.Trim();
+        var output = OutputFolderBox.Text?.Trim();
+        var ready =
+            !string.IsNullOrWhiteSpace(macroPath)
+            && File.Exists(macroPath)
+            && !string.IsNullOrWhiteSpace(input)
+            && Directory.Exists(input)
+            && !string.IsNullOrWhiteSpace(output)
+            && MacroBulk.EnumerateInputs(input).Count > 0;
+        RunButton.IsEnabled = ready;
     }
 
     private void OnCloseOrCancel()
@@ -160,6 +206,21 @@ public partial class BulkProcessDialog : Window
             return;
         }
 
+        if (
+            string.Equals(input, output, StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(suffix)
+        )
+        {
+            var proceed = await ConfirmDialog.AskYesNoAsync(
+                this,
+                "Input and output folders are the same and the suffix is empty. This will overwrite source files. Continue?",
+                yesLabel: "Continue",
+                noLabel: "Cancel"
+            );
+            if (!proceed)
+                return;
+        }
+
         if (FormatCombo.SelectedItem is not ExportFormat format)
             return;
 
@@ -174,10 +235,9 @@ public partial class BulkProcessDialog : Window
             return;
         }
 
-        var missing = MacroRunner.MissingIds(macro);
-        if (missing.Count > 0)
+        if (MacroRunner.Validate(macro) is { } error)
         {
-            ProgressText.Text = "Unknown filter id(s): " + string.Join(", ", missing);
+            ProgressText.Text = error;
             return;
         }
 
@@ -192,12 +252,18 @@ public partial class BulkProcessDialog : Window
         _cts = new CancellationTokenSource();
         RunButton.IsEnabled = false;
         CancelButton.Content = "Cancel";
+        LogBox.IsVisible = true;
         LogBox.Text = "";
+        ProgressBar.IsVisible = true;
+        ProgressBar.Value = 0;
+        ProgressBar.Maximum = files.Count;
         ProgressText.Text = $"Starting · {files.Count} file(s)…";
 
         var progress = new Progress<MacroBulkProgress>(p =>
         {
-            ProgressText.Text = $"Processing {p.Done}/{p.Total} · {Path.GetFileName(p.CurrentFile)}";
+            ProgressBar.Value = p.Done;
+            ProgressText.Text =
+                $"Processing {p.Done}/{p.Total} · {Path.GetFileName(p.CurrentFile)}";
             if (p.Error is not null)
                 AppendLog(p.Error);
         });
@@ -215,6 +281,7 @@ public partial class BulkProcessDialog : Window
                 progress,
                 _cts.Token
             );
+            ProgressBar.Value = files.Count;
             ProgressText.Text = $"Done · {ok} ok · {failed} failed";
             if (failed == 0)
                 AppendLog($"Finished {ok} file(s).");
@@ -234,8 +301,8 @@ public partial class BulkProcessDialog : Window
             _running = false;
             _cts.Dispose();
             _cts = null;
-            RunButton.IsEnabled = true;
             CancelButton.Content = "Close";
+            UpdateRunEnabled();
         }
     }
 

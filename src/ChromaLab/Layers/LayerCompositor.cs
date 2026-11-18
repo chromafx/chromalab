@@ -31,17 +31,73 @@ public static class LayerCompositor
     public static Image Composite(LayerDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
+
+        if (TryFastPathSingleLayer(document, out var fast))
+            return fast;
+
         var canvas = new Image(document.Width, document.Height);
+        var first = true;
 
         foreach (var layer in document.Layers)
         {
             if (!layer.Visible || layer.Opacity <= 0f)
                 continue;
 
+            if (
+                first
+                && layer.BlendMode == BlendMode.Normal
+                && layer.Opacity >= 1f
+                && layer.X == 0
+                && layer.Y == 0
+                && layer.Pixels.Width == document.Width
+                && layer.Pixels.Height == document.Height
+            )
+            {
+                canvas = layer.Pixels.Clone();
+                first = false;
+                continue;
+            }
+
             BlendLayer(canvas, layer);
+            first = false;
         }
 
         return canvas;
+    }
+
+    private static bool TryFastPathSingleLayer(LayerDocument document, out Image result)
+    {
+        result = null!;
+        RasterLayer? only = null;
+        foreach (var layer in document.Layers)
+        {
+            if (!layer.Visible || layer.Opacity <= 0f)
+                continue;
+            if (only is not null)
+                return false;
+            only = layer;
+        }
+
+        if (only is null)
+        {
+            result = new Image(document.Width, document.Height);
+            return true;
+        }
+
+        if (
+            only.BlendMode == BlendMode.Normal
+            && only.Opacity >= 1f
+            && only.X == 0
+            && only.Y == 0
+            && only.Pixels.Width == document.Width
+            && only.Pixels.Height == document.Height
+        )
+        {
+            result = only.Pixels.Clone();
+            return true;
+        }
+
+        return false;
     }
 
     private static void BlendLayer(Image canvas, RasterLayer layer)

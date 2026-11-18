@@ -8,14 +8,15 @@
         CanResize="True"
         MinWidth="440"
         MinHeight="480"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        Background="{DynamicResource EditorPanelBrush}">
   <DockPanel Margin="16">
     <StackPanel DockPanel.Dock="Bottom"
                 Orientation="Horizontal"
                 HorizontalAlignment="Right"
                 Spacing="8"
                 Margin="0,16,0,0">
-      <Button Name="RunButton" Content="Run" MinWidth="96" IsDefault="True" />
+      <Button Name="RunButton" Content="Run" Classes="accent" MinWidth="96" IsDefault="True" />
       <Button Name="CancelButton" Content="Close" MinWidth="88" IsCancel="True" />
     </StackPanel>
 
@@ -75,6 +76,18 @@
 
         <StackPanel Name="OptionsHost" Spacing="8" />
 
+        <TextBlock Name="InputCountText"
+                   FontSize="12"
+                   Opacity="0.75"
+                   TextWrapping="Wrap"
+                   Text="" />
+
+        <ProgressBar Name="ProgressBar"
+                     Minimum="0"
+                     Maximum="100"
+                     Height="6"
+                     IsVisible="False" />
+
         <TextBlock Name="ProgressText"
                    FontSize="12"
                    Opacity="0.85"
@@ -87,7 +100,8 @@
                  TextWrapping="Wrap"
                  MinHeight="120"
                  FontSize="11"
-                 Opacity="0.9" />
+                 Opacity="0.9"
+                 IsVisible="False" />
       </StackPanel>
     </ScrollViewer>
   </DockPanel>

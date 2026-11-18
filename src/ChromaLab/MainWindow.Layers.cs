@@ -25,12 +25,11 @@ public partial class MainWindow
         if (_busy || !_session.HasImage)
             return;
 
-        CancelPreviewWork();
+        CancelTransientModes(clearInspector: false);
         try
         {
             _session.EditDocument(edit);
             StatusText.Text = _session.LayerLabel;
-            UpdateMeta();
         }
         catch (Exception ex)
         {
@@ -43,14 +42,12 @@ public partial class MainWindow
         if (_busy || !_session.HasImage)
             return;
 
-        CancelPreviewWork();
-        Inspector.Clear();
+        CancelTransientModes(clearInspector: true);
         _session.ClearPreview();
         try
         {
             _session.SelectLayer(index);
             StatusText.Text = _session.LayerLabel;
-            UpdateMeta();
         }
         catch (Exception ex)
         {
@@ -60,11 +57,12 @@ public partial class MainWindow
 
     private void SelectAdjacentLayer(int delta)
     {
-        if (_session.Document is null)
+        if (_busy || !_session.HasImage)
             return;
-        var count = _session.Document.Layers.Count;
-        if (count == 0)
-            return;
-        SelectLayerIndex((_session.Document.ActiveIndex + delta + count) % count);
+
+        CancelTransientModes(clearInspector: true);
+        _session.ClearPreview();
+        _session.SelectAdjacentLayer(delta);
+        StatusText.Text = _session.LayerLabel;
     }
 }

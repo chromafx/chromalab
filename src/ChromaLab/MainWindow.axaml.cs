@@ -18,6 +18,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using ChromaLab.Macros;
 using ChromaLab.Services;
 
@@ -41,6 +42,7 @@ public partial class MainWindow : Window
 
     private readonly ImageSession _session = new();
     private readonly PreviewViewport _viewport = new();
+    private readonly CropController _crop = new();
     private readonly MacroRecorder _macroRecorder = new();
     private readonly List<Control> _filterMenuControls = [];
     private readonly List<Control> _alwaysWhenIdle = [];
@@ -51,15 +53,13 @@ public partial class MainWindow : Window
     private bool _forceClose;
     private LeftRailMode _railMode = LeftRailMode.Tools;
     private CanvasTool _canvasTool = CanvasTool.Hand;
-    private bool _cropDragging;
-    private Point _cropStart;
-    private Rect? _cropRectImage;
 
     public MainWindow()
     {
         InitializeComponent();
         _viewport.Attach(PreviewScroll, ZoomHost, PreviewContentHost, Checkerboard, CropOverlay);
         ApplyMenuGestures();
+        ApplyToolbarTooltips();
         BuildFilterUi();
         CollectCommandGroups();
         WireShell();
@@ -100,11 +100,15 @@ public partial class MainWindow : Window
     {
         Inspector.ApplyRequested += (_, args) => TryMutate(args.Entry, args.Values);
         Inspector.ValuesChanged += (_, args) => SchedulePreview(args.Entry, args.Values);
-        Inspector.CancelRequested += (_, _) => CancelInspectorPreview();
+        Inspector.CancelRequested += (_, _) =>
+        {
+            FilterBrowser.SetSelectedEntry(null);
+            CancelInspectorPreview();
+        };
         Inspector.VariantPreviewFactory = (entry, values) =>
             _session.CreateFilterVariantThumb(entry, values);
         FilterBrowser.FilterChosen += (_, entry) => OnFilterChosen(entry);
-        _session.Changed += (_, _) => OnSessionChanged();
+        _session.Changed += (_, kind) => OnSessionChanged(kind);
 
         UiHelpers.Wire(OnOpenClick, OpenMenuItem, OpenButton, EmptyOpenButton);
         UiHelpers.Wire(OnSaveClick, SaveMenuItem, SaveButton);
@@ -139,14 +143,14 @@ public partial class MainWindow : Window
         HandToolButton.Click += (_, _) => SetCanvasTool(CanvasTool.Hand);
         CropToolButton.Click += (_, _) => SetCanvasTool(CanvasTool.Crop);
         ApplyCropButton.Click += (_, _) => ApplyCrop();
-        CancelCropButton.Click += (_, _) => ClearCropSelection();
+        CancelCropButton.Click += (_, _) => CancelCropOrExit();
         Rotate90Button.Click += (_, _) => ApplyCatalogId("rotate-90");
         Rotate180Button.Click += (_, _) => ApplyCatalogId("rotate-180");
         FlipHButton.Click += (_, _) => ApplyCatalogId("flip-h");
         FlipVButton.Click += (_, _) => ApplyCatalogId("flip-v");
-        ResizeToolButton.Click += (_, _) => ApplyCatalogId("resize");
-        RotateToolButton.Click += (_, _) => ApplyCatalogId("rotate");
-        SkewToolButton.Click += (_, _) => ApplyCatalogId("skew");
+        ResizeToolButton.Click += (_, _) => ApplyCatalogId("resize", stayOnTools: true);
+        RotateToolButton.Click += (_, _) => ApplyCatalogId("rotate", stayOnTools: true);
+        SkewToolButton.Click += (_, _) => ApplyCatalogId("skew", stayOnTools: true);
 
         LayersPane.AddRequested += (_, _) => EditLayers(d => d.AddEmptyLayer());
         LayersPane.DuplicateRequested += (_, _) => EditLayers(d => d.DuplicateActive());
@@ -184,7 +188,7 @@ public partial class MainWindow : Window
         PreviewFrame.PointerCaptureLost += (_, _) =>
         {
             _viewport.EndPan();
-            _cropDragging = false;
+            _crop.EndDrag();
         };
         PreviewScroll.SizeChanged += (_, _) =>
         {
@@ -281,7 +285,7 @@ public partial class MainWindow : Window
 
     private void ApplyMenuGestures()
     {
-        var primary = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
+        var primary = PrimaryModifier();
         OpenMenuItem.InputGesture = new KeyGesture(Key.O, primary);
         SaveMenuItem.InputGesture = new KeyGesture(Key.S, primary);
         SaveAsMenuItem.InputGesture = new KeyGesture(Key.S, primary | KeyModifiers.Shift);
@@ -295,22 +299,57 @@ public partial class MainWindow : Window
         CompareMenuItem.InputGesture = new KeyGesture(Key.Space);
     }
 
+    private void ApplyToolbarTooltips()
+    {
+        var mod = OperatingSystem.IsMacOS() ? "⌘" : "Ctrl+";
+        ToolTip.SetTip(OpenButton, $"Open ({mod}O)");
+        ToolTip.SetTip(SaveButton, $"Save ({mod}S)");
+        ToolTip.SetTip(ExportButton, $"Export… ({mod}E)");
+        ToolTip.SetTip(UndoButton, $"Undo ({mod}Z)");
+        ToolTip.SetTip(RedoButton, $"Redo ({mod}Y)");
+        ToolTip.SetTip(ResetButton, "Reset to original");
+        ToolTip.SetTip(ZoomOutButton, $"Zoom out ({mod}-)");
+        ToolTip.SetTip(ZoomInButton, $"Zoom in ({mod}=)");
+        ToolTip.SetTip(ActualSizeButton, $"Actual size 100% ({mod}0)");
+        ToolTip.SetTip(FitButton, $"Fit to window ({mod}1)");
+        ToolTip.SetTip(CompareButton, "Hold to compare with original (Space)");
+    }
+
+    private static KeyModifiers PrimaryModifier() =>
+        OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
+
     private static bool HasPrimaryModifier(KeyEventArgs e) =>
         e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta);
+
+    private static bool IsTextInputFocused(object? source)
+    {
+        for (var current = source as Avalonia.Visual; current is not null; current = current.GetVisualParent())
+        {
+            if (current is TextBox or ComboBox)
+                return true;
+        }
+
+        return false;
+    }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (_busy || e.Handled)
             return;
 
-        if (e.Key == Key.Space && !HasPrimaryModifier(e) && _session.HasImage)
+        if (
+            e.Key == Key.Space
+            && !HasPrimaryModifier(e)
+            && _session.HasImage
+            && !IsTextInputFocused(e.Source)
+        )
         {
             BeginCompare();
             e.Handled = true;
             return;
         }
 
-        if (_canvasTool == CanvasTool.Crop && _cropRectImage is not null)
+        if (_canvasTool == CanvasTool.Crop && _crop.HasRect)
         {
             if (e.Key is Key.Enter or Key.Return)
             {
@@ -333,6 +372,11 @@ public partial class MainWindow : Window
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
         switch (e.Key)
         {
+            case Key.F when !shift:
+                SetRailMode(LeftRailMode.Filters);
+                FilterBrowser.FocusSearch();
+                e.Handled = true;
+                break;
             case Key.O when !shift:
                 OnOpenClick(this, new RoutedEventArgs());
                 e.Handled = true;
@@ -385,7 +429,7 @@ public partial class MainWindow : Window
 
     private void OnKeyUp(object? sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Space)
+        if (e.Key != Key.Space || IsTextInputFocused(e.Source))
             return;
         EndCompare();
         e.Handled = true;
@@ -409,8 +453,17 @@ public partial class MainWindow : Window
         if (!_session.IsComparing)
             return;
         _session.EndCompare();
-        if (!_busy && _session.HasImage)
-            StatusText.Text = "Ready";
+        if (_busy || !_session.HasImage)
+            return;
+
+        if (Inspector.SelectedEntry is not null)
+        {
+            StatusText.Text = $"{Inspector.SelectedEntry.DisplayName} — preview; Apply to commit";
+            Inspector.NotifyValuesChanged();
+            return;
+        }
+
+        StatusText.Text = "Ready";
     }
 
     private void SetBusy(bool busy, string? status = null)
@@ -421,15 +474,30 @@ public partial class MainWindow : Window
         if (status is not null)
             StatusText.Text = status;
         Cursor = busy ? new Cursor(StandardCursorType.Wait) : Cursor.Default;
-        RefreshUi();
+        BusyProgress.IsVisible = busy;
+        RefreshCommandState();
+        RefreshPreviewUi();
     }
 
-    private void OnSessionChanged()
+    private void OnSessionChanged(SessionChangeKind kind)
     {
         if (!_session.HasAnimation && _animationPlaying)
             StopAnimationPlayback(restoreDocument: false);
-        RefreshUi();
-        UpdateMeta();
+
+        switch (kind)
+        {
+            case SessionChangeKind.PreviewOnly:
+                RefreshPreviewUi();
+                break;
+            case SessionChangeKind.Selection:
+                RefreshCommandState();
+                LayersPane.RefreshSelection(_session.Document, _session.HasImage && !_busy);
+                UpdateMeta();
+                break;
+            default:
+                RefreshUi();
+                break;
+        }
     }
 
     private void UpdateMeta()
@@ -455,7 +523,19 @@ public partial class MainWindow : Window
             ? new PixelSize(bmp.PixelSize.Width, bmp.PixelSize.Height)
             : null;
 
-    private void RefreshUi()
+    private void RefreshPreviewUi()
+    {
+        var has = _session.HasImage;
+        EmptyHint.IsVisible = !has;
+        ZoomHost.IsVisible = has;
+        PreviewImage.Source = _session.Preview;
+        _viewport.ApplyTransform();
+        _viewport.UpdateContentHostSize(PreviewPixelSize());
+        UpdateZoomLabel();
+        UpdateAnimationUi();
+    }
+
+    private void RefreshCommandState()
     {
         var has = _session.HasImage;
         var idle = !_busy;
@@ -463,9 +543,9 @@ public partial class MainWindow : Window
         var multiLayer = has && (_session.Document?.Layers.Count ?? 0) > 1;
         var doc = _session.Document;
 
-        UiHelpers.SetEnabled(idle, _alwaysWhenIdle.ToArray());
-        UiHelpers.SetEnabled(canEdit, _whenCanEdit.ToArray());
-        UiHelpers.SetEnabled(canEdit, _whenCanZoom.ToArray());
+        UiHelpers.SetEnabled(idle, _alwaysWhenIdle);
+        UiHelpers.SetEnabled(canEdit, _whenCanEdit);
+        UiHelpers.SetEnabled(canEdit, _whenCanZoom);
         UiHelpers.SetEnabled(canEdit && _session.CanUndo, UndoMenuItem, UndoButton);
         UiHelpers.SetEnabled(canEdit && _session.CanRedo, RedoMenuItem, RedoButton);
         UiHelpers.SetEnabled(
@@ -477,20 +557,22 @@ public partial class MainWindow : Window
             LayerMoveDownMenuItem
         );
         UiHelpers.SetEnabled(canEdit && multiLayer, LayerDeleteMenuItem);
-        UiHelpers.SetEnabled(canEdit, _filterMenuControls.ToArray());
+        UiHelpers.SetEnabled(canEdit, _filterMenuControls);
         FilterBrowser.SetEntriesEnabled(canEdit);
         Inspector.SetCanApply(canEdit);
-        LayersPane.Refresh(doc, canEdit);
         RefreshMacroMenuUi(idle, canEdit);
-
-        EmptyHint.IsVisible = !has;
-        ZoomHost.IsVisible = has;
-        PreviewImage.Source = _session.Preview;
-        _viewport.ApplyTransform();
-        _viewport.UpdateContentHostSize(PreviewPixelSize());
-        UpdateZoomLabel();
         UpdateMeta();
-        UpdateAnimationUi();
+    }
+
+    private void RefreshUi()
+    {
+        var has = _session.HasImage;
+        var canEdit = has && !_busy;
+        var doc = _session.Document;
+
+        RefreshCommandState();
+        LayersPane.Refresh(doc, canEdit);
+        RefreshPreviewUi();
 
         if (!has)
         {

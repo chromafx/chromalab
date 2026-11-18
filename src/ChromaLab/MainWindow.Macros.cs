@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
+using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using ChromaLab.Dialogs;
 using ChromaLab.Macros;
+using ChromaLab.Services;
 
 namespace ChromaLab;
 
@@ -44,6 +46,12 @@ public partial class MainWindow
         MacroSaveMenuItem.IsEnabled = idle && _macroRecorder.StepCount > 0;
         MacroRunMenuItem.IsEnabled = canEdit;
         MacroBulkMenuItem.IsEnabled = idle;
+        RecordingBadge.IsVisible = _macroRecorder.IsRecording;
+        if (_macroRecorder.IsRecording)
+            ToolTip.SetTip(
+                RecordingBadge,
+                $"Recording · {_macroRecorder.StepCount} step(s)"
+            );
     }
 
     private void ToggleMacroRecording()
@@ -79,13 +87,7 @@ public partial class MainWindow
                 Title = "Save macro",
                 SuggestedFileName = "macro.chromafx-macro.json",
                 DefaultExtension = "chromafx-macro.json",
-                FileTypeChoices =
-                [
-                    new FilePickerFileType("ChromaFx macro")
-                    {
-                        Patterns = ["*.chromafx-macro.json", "*.json"],
-                    },
-                ],
+                FileTypeChoices = [MacroFileTypes.PickerType],
             }
         );
         if (file?.TryGetLocalPath() is not { } path)
@@ -120,13 +122,7 @@ public partial class MainWindow
             {
                 Title = "Open & run macro",
                 AllowMultiple = false,
-                FileTypeFilter =
-                [
-                    new FilePickerFileType("ChromaFx macro")
-                    {
-                        Patterns = ["*.chromafx-macro.json", "*.json"],
-                    },
-                ],
+                FileTypeFilter = [MacroFileTypes.PickerType],
             }
         );
         if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path)
@@ -143,15 +139,13 @@ public partial class MainWindow
             return;
         }
 
-        var missing = MacroRunner.MissingIds(macro);
-        if (missing.Count > 0)
+        if (MacroRunner.Validate(macro) is { } error)
         {
-            StatusText.Text = "Unknown filter id(s): " + string.Join(", ", missing);
+            StatusText.Text = error;
             return;
         }
 
-        CancelPreviewWork();
-        Inspector.Clear();
+        CancelTransientModes(clearInspector: true);
         SetBusy(true, $"Macro · {macro.Name}…");
         try
         {
@@ -160,7 +154,6 @@ public partial class MainWindow
             sw.Stop();
             StatusText.Text =
                 $"Macro · {macro.Name} · {macro.Steps.Count} step(s) · {sw.ElapsedMilliseconds} ms";
-            UpdateMeta();
         }
         catch (Exception ex)
         {

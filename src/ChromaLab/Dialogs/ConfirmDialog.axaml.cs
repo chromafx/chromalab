@@ -62,6 +62,25 @@ public partial class ConfirmDialog : Window
         return dialog._result;
     }
 
+    /// <summary>
+    /// Yes/No prompt (hides Don't Save). Returns true when the user confirms.
+    /// </summary>
+    public static async Task<bool> AskYesNoAsync(
+        Window owner,
+        string message,
+        string yesLabel = "Overwrite",
+        string noLabel = "Cancel"
+    )
+    {
+        var dialog = new ConfirmDialog();
+        dialog.MessageText.Text = message;
+        dialog.SaveButton.Content = yesLabel;
+        dialog.DiscardButton.IsVisible = false;
+        dialog.CancelButton.Content = noLabel;
+        await dialog.ShowDialog(owner);
+        return dialog._result == ConfirmResult.Save;
+    }
+
     private void CloseWith(ConfirmResult result)
     {
         _result = result;

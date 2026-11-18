@@ -46,6 +46,12 @@ public static class UiHelpers
             control.IsEnabled = enabled;
     }
 
+    public static void SetEnabled(bool enabled, IReadOnlyList<Control> controls)
+    {
+        foreach (var control in controls)
+            control.IsEnabled = enabled;
+    }
+
     public static void SetSelectedClass(Button button, bool selected)
     {
         if (selected)

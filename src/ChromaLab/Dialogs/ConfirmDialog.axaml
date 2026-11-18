@@ -6,7 +6,8 @@
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        Background="{DynamicResource EditorPanelBrush}">
   <DockPanel Margin="16" LastChildFill="True">
     <StackPanel DockPanel.Dock="Bottom"
                 Orientation="Horizontal"

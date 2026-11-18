@@ -2,11 +2,20 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="ChromaLab.Controls.FilterCatalogView">
   <DockPanel>
-    <TextBox Name="SearchBox"
-             DockPanel.Dock="Top"
-             PlaceholderText="Search filters…"
-             Margin="0,0,0,8"
-             MinHeight="32" />
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+      <Button Name="ClearSearchButton"
+              DockPanel.Dock="Right"
+              Content="×"
+              Width="32"
+              MinHeight="32"
+              Padding="0"
+              Margin="6,0,0,0"
+              IsVisible="False"
+              ToolTip.Tip="Clear search" />
+      <TextBox Name="SearchBox"
+               PlaceholderText="Search filters…"
+               MinHeight="32" />
+    </DockPanel>
     <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                   VerticalScrollBarVisibility="Auto">
       <StackPanel Name="GroupsHost" Spacing="10" />

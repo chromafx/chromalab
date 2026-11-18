@@ -18,6 +18,24 @@
         </DrawingGroup>
       </DrawingBrush.Drawing>
     </DrawingBrush>
+
+    <!-- Icon brush kit (tints for Lucide stroke icons) -->
+    <SolidColorBrush x:Key="IconMutedBrush">#FFB8C0CC</SolidColorBrush>
+    <SolidColorBrush x:Key="IconAccentBrush">#FF4AA3E0</SolidColorBrush>
+    <SolidColorBrush x:Key="IconDangerBrush">#FFE07A8A</SolidColorBrush>
+    <SolidColorBrush x:Key="IconSuccessBrush">#FF5CB8A0</SolidColorBrush>
+    <LinearGradientBrush x:Key="IconAccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+      <GradientStop Color="#FF5EC8E8" Offset="0" />
+      <GradientStop Color="#FF3D8FD1" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="IconSuccessGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+      <GradientStop Color="#FF7AD4BC" Offset="0" />
+      <GradientStop Color="#FF3FA88A" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="IconWebsafeGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+      <GradientStop Color="#FF8B9DC3" Offset="0" />
+      <GradientStop Color="#FF5A7AB0" Offset="1" />
+    </LinearGradientBrush>
   </Application.Resources>
 
   <Application.Styles>
@@ -36,8 +54,8 @@
     <Style Selector="Button.tool.selected">
       <Setter Property="Background" Value="{DynamicResource EditorToolSelectedBrush}" />
     </Style>
-    <Style Selector="Button.tool:disabled Path">
-      <Setter Property="Opacity" Value="0.35" />
+    <Style Selector="Button.tool:disabled">
+      <Setter Property="Opacity" Value="0.4" />
     </Style>
     <Style Selector="Separator.tool-sep">
       <Setter Property="Margin" Value="6,4" />
@@ -63,6 +81,23 @@
       <Setter Property="FontSize" Value="12" />
     </Style>
     <Style Selector="Button.catalog-entry:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource EditorToolSelectedBrush}" />
+    </Style>
+    <Style Selector="Button.catalog-entry.selected">
+      <Setter Property="Background" Value="{DynamicResource EditorToolSelectedBrush}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.accent">
+      <Setter Property="Background" Value="{DynamicResource EditorAccentBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#FF5AA3E0" />
+    </Style>
+    <Style Selector="Button.rail-tab:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource EditorToolSelectedBrush}" />
+    </Style>
+    <Style Selector="Border.layer-row:pointerover">
       <Setter Property="Background" Value="{DynamicResource EditorToolSelectedBrush}" />
     </Style>
   </Application.Styles>
