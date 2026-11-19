@@ -55,6 +55,18 @@ public static partial class FilterCatalog
         new(nameof(CgaPaletteMode.Monochrome2), "Monochrome"),
     ];
 
+    private static readonly FilterChoice[] EgaModeChoices =
+    [
+        new(nameof(EgaPaletteMode.Full64), "Full 64"),
+        new(nameof(EgaPaletteMode.Adaptive16), "Adaptive 16"),
+    ];
+
+    private static readonly FilterChoice[] VgaModeChoices =
+    [
+        new(nameof(VgaPaletteMode.DacLevels), "DAC levels"),
+        new(nameof(VgaPaletteMode.Adaptive256), "Adaptive 256"),
+    ];
+
     private static readonly FilterChoice[] BevelStyleChoices =
     [
         new(nameof(BevelStyle.Raised), "Raised"),

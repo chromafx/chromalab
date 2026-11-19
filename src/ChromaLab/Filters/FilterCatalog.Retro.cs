@@ -68,22 +68,32 @@ public static partial class FilterCatalog
                 "Retro",
                 "EGA palette",
                 [
+                    Choice("mode", "Mode", nameof(EgaPaletteMode.Full64), EgaModeChoices),
                     Choice("dither", "Dither", nameof(OrderedDitherMethod.Bayer4x4), DitherChoices),
                     Float("strength", "Strength", 0.4, 0, 1, 0.05),
                 ],
                 (c, v) =>
-                    c.EgaQuantize(v.GetEnum<OrderedDitherMethod>("dither"), v.GetFloat("strength"))
+                    c.EgaQuantize(
+                        v.GetEnum<EgaPaletteMode>("mode"),
+                        v.GetEnum<OrderedDitherMethod>("dither"),
+                        v.GetFloat("strength")
+                    )
             ),
             Parametric(
                 "vga",
                 "Retro",
                 "VGA 6-bit",
                 [
+                    Choice("mode", "Mode", nameof(VgaPaletteMode.DacLevels), VgaModeChoices),
                     Choice("dither", "Dither", nameof(OrderedDitherMethod.Bayer4x4), DitherChoices),
                     Float("strength", "Strength", 0.4, 0, 1, 0.05),
                 ],
                 (c, v) =>
-                    c.VgaQuantize(v.GetEnum<OrderedDitherMethod>("dither"), v.GetFloat("strength"))
+                    c.VgaQuantize(
+                        v.GetEnum<VgaPaletteMode>("mode"),
+                        v.GetEnum<OrderedDitherMethod>("dither"),
+                        v.GetFloat("strength")
+                    )
             ),
             Parametric(
                 "bad-web",
