@@ -8,7 +8,7 @@ Built with **Avalonia**. Local builds use **ProjectReferences** into a sibling `
 
 ## Download
 
-Self-contained zips for **win-x64**, **osx-arm64**, and **linux-x64** are on the [Releases](https://github.com/chromafx/chromalab/releases) page (current: **v0.3.0**).
+Self-contained zips for **win-x64**, **osx-arm64**, and **linux-x64** are on the [Releases](https://github.com/chromafx/chromalab/releases) page (current: **v0.4.0**).
 
 - **Windows** — unzip and run `ChromaLab.exe` (embedded app icon).
 - **macOS** — unzip and open `ChromaLab.app` (Dock/Finder icon from `Assets/icon.icns`).
