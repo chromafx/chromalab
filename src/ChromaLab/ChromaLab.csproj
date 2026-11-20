@@ -12,7 +12,7 @@
     <RollForward>Major</RollForward>
     <IsPackable>false</IsPackable>
     <PublishSingleFile>false</PublishSingleFile>
-    <ChromaFxPackageVersion Condition="'$(ChromaFxPackageVersion)' == ''">0.6.5</ChromaFxPackageVersion>
+    <ChromaFxPackageVersion Condition="'$(ChromaFxPackageVersion)' == ''">0.6.6</ChromaFxPackageVersion>
     <!-- Local dogfood: sibling chromafx ProjectReferences. CI/release: -p:UseLocalChromaFx=false -->
     <_LocalChromaFxProj>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\..\chromafx\src\ChromaFx\ChromaFx.csproj'))</_LocalChromaFxProj>
     <UseLocalChromaFx Condition="'$(UseLocalChromaFx)' == '' and Exists('$(_LocalChromaFxProj)')">true</UseLocalChromaFx>

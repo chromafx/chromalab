@@ -42,7 +42,7 @@ Avalonia desktop **image editor** powered by the sibling ChromaFx library (also 
 ## ChromaFx references
 
 - **Local (default):** when `../../../chromafx/src/ChromaFx/ChromaFx.csproj` exists, `UseLocalChromaFx=true` → ProjectReferences (meta + PixelArt + Retro + Native).
-- **CI / release:** `-p:UseLocalChromaFx=false` → PackageReferences at `ChromaFxPackageVersion` (default `0.6.5`). Bump that property when pinning a newer library tag.
+- **CI / release:** `-p:UseLocalChromaFx=false` → PackageReferences at `ChromaFxPackageVersion` (default `0.6.6`). Bump that property when pinning a newer library tag.
 - Prefer ProjectReferences for day-to-day dogfooding; do not switch the default local path to NuGet.
 
 ## Commands
