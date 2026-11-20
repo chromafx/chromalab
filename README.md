@@ -42,23 +42,15 @@ Bump the library pin with `-p:ChromaFxPackageVersion=0.6.x` (default `0.6.5`) wh
 
 ## What’s wired
 
-- **Editor shell** — top bar (brand + document actions), left **Tools / Filters** rail, canvas with checkerboard, right **inspector + layers** panel, status bar
-- Open / **Save** / **Save As…** / **Export…** / Reset; **drag-and-drop** open; empty-state Open
-- **Tools** — Hand/pan, **Crop** (active layer), Rotate 90°/180° / Flip; **Resize** / **Rotate** / **Skew** / **Perspective** / **Curves** (inspector)
-- **Filters** — searchable catalog from `FilterCatalog`; parametric filters **live-preview** in the inspector; **Apply** commits (undo); **Cancel** drops preview; **Randomize** (all params); **variant strip**; Alt-click canvas to set center (`cx`/`cy`); hold-to-compare shows PSNR/SSIM vs open-original (needs sibling Core with `ImageSimilarity`)
-- **GIF playback** — multi-frame GIFs open as a still (frame 0) for editing; Tools → **Play** / Pause previews frames (play-only; no animated export)
-- **Canvas Size…** (Edit menu) — change document W×H; layer pixels/offsets unchanged (display clips)
-- **Layers** — thumbs, visibility, active row, Add / Duplicate / Delete / Move up·down; filters edit the active layer; composite for display
-- **OpenRaster (`.ora`)** — lab-only open/save of the layer document (not in ChromaFx.IO). Nested groups flatten on import. Export stays flattened stills only.
-- **Export options** — JPEG quality; TIFF None/Deflate; WebP/AVIF/JXL quality + lossless (native RIDs)
-- **Async** open / save / export / filters (busy cursor + controls disabled)
-- **Dirty** tracking — title/status `•` marker; Save / Don’t Save / Cancel on open & quit
-- **Undo / Redo** (up to 24 document snapshots; Ctrl/⌘Z, Ctrl/⌘Y, Ctrl/⌘⇧Z)
-- **Hold-to-compare** — Space (or toolbar) shows the document-open original
-- **Shortcuts** — Ctrl/⌘O open, Ctrl/⌘S save, Ctrl/⌘⇧S save as, Ctrl/⌘E export, Ctrl/⌘0 100%, Ctrl/⌘1 fit, Ctrl/⌘± zoom
-- **Zoom / pan** — wheel zoom-to-cursor, drag to pan
-- **Macros** — record catalog Applies (id + params) to `*.chromafx-macro.json`; Open & Run on the active layer; **Bulk Process…** a folder to flattened exports (skips `.ora` / `.gif`)
-- **Toolbar icons** — Lucide SVG subset (`LabIcon`); tinted via `Icon*` brushes (see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md))
+- **Editor** — top bar, Tools / Filters rail, checkerboard canvas, inspector + layers, status bar; Lucide toolbar icons (see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md))
+- **Document** — Open / Save / Save As… / Export… / Reset; drag-and-drop; dirty marker + Save / Don’t Save / Cancel; undo/redo (24); async busy state
+- **Tools & canvas** — Hand/pan, Crop (active layer), Rotate/Flip; Resize / Rotate / Skew / Perspective / Curves (inspector); Canvas Size… (W×H only); zoom/pan (wheel, shortcuts); hold-to-compare (Space)
+- **Filters** — searchable catalog; live preview → Apply (undo) / Cancel; Randomize; variant strip; Alt-click for `cx`/`cy`; compare shows PSNR/SSIM vs open-original
+- **Layers & ORA** — thumbs, visibility, reorder, Add / Duplicate / Delete; filters target active layer; OpenRaster open/save (lab-only; nested groups flatten); Export is flattened stills
+- **GIF** — multi-frame opens as frame 0; Tools → Play / Pause preview only (no animated export)
+- **Export** — JPEG quality; TIFF None/Deflate; WebP/AVIF/JXL quality + lossless when native RIDs are present
+- **Macros** — record catalog Applies to `*.chromafx-macro.json`; Open & Run; Bulk Process… a folder (skips `.ora` / `.gif`)
+- **Shortcuts** — Ctrl/⌘O open, Ctrl/⌘S save, Ctrl/⌘⇧S save as, Ctrl/⌘E export, Ctrl/⌘Z/Y undo/redo, Ctrl/⌘0 100%, Ctrl/⌘1 fit, Ctrl/⌘± zoom
 
 ## Tests
 
