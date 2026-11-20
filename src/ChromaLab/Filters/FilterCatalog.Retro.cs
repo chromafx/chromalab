@@ -333,8 +333,15 @@ public static partial class FilterCatalog
                     Float("strength", "Strength", 0.85, 0, 1, 0.05),
                     Int("seed", "Seed", 7, 0, 9999),
                     Float("cooling", "Cooling", 1, 0.5, 2, 0.05),
+                    Float("imageInfluence", "Image influence", 0.75, 0, 1, 0.05),
                 ],
-                (c, v) => c.Fire(v.GetFloat("strength"), v.GetInt("seed"), v.GetFloat("cooling"))
+                (c, v) =>
+                    c.Fire(
+                        v.GetFloat("strength"),
+                        v.GetInt("seed"),
+                        v.GetFloat("cooling"),
+                        v.GetFloat("imageInfluence")
+                    )
             )
         ];
 }
